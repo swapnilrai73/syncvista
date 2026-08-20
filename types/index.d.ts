@@ -15,7 +15,7 @@ declare type SignUpParams = {
   state: string;
   postalCode: string;
   dateOfBirth: string;
-  ssn: string;
+  panNumber: string;
   email: string;
   password: string;
 };
@@ -29,8 +29,6 @@ declare type User = {
   $id: string;
   email: string;
   userId: string;
-  dwollaCustomerUrl: string;
-  dwollaCustomerId: string;
   firstName: string;
   lastName: string;
   name: string;
@@ -39,7 +37,7 @@ declare type User = {
   state: string;
   postalCode: string;
   dateOfBirth: string;
-  ssn: string;
+  panNumber: string;
 };
 
 declare type NewUserParams = {
@@ -59,7 +57,7 @@ declare type Account = {
   name: string;
   type: string;
   subtype: string;
-  appwriteItemId: string;
+  bankDocumentId: string;
   shareableId: string;
 };
 
@@ -86,8 +84,7 @@ declare type Bank = {
   $id: string;
   accountId: string;
   bankId: string;
-  accessToken: string;
-  fundingSourceUrl: string;
+  consentId: string;
   userId: string;
   shareableId: string;
 };
@@ -112,31 +109,6 @@ declare type Receiver = {
   lastName: string;
 };
 
-declare type TransferParams = {
-  sourceFundingSourceUrl: string;
-  destinationFundingSourceUrl: string;
-  amount: string;
-};
-
-declare type AddFundingSourceParams = {
-  dwollaCustomerId: string;
-  processorToken: string;
-  bankName: string;
-};
-
-declare type NewDwollaCustomerParams = {
-  firstName: string;
-  lastName: string;
-  email: string;
-  type: string;
-  address1: string;
-  city: string;
-  state: string;
-  postalCode: string;
-  dateOfBirth: string;
-  ssn: string;
-};
-
 declare interface CreditCardProps {
   account: Account;
   userName: string;
@@ -145,7 +117,7 @@ declare interface CreditCardProps {
 
 declare interface BankInfoProps {
   account: Account;
-  appwriteItemId?: string;
+  bankDocumentId?: string;
   type: "full" | "card";
 }
 
@@ -173,10 +145,9 @@ declare interface PaginationProps {
   totalPages: number;
 }
 
-declare interface PlaidLinkProps {
+declare interface SetuConnectProps {
   user: User;
   variant?: "primary" | "ghost";
-  dwollaCustomerId?: string;
 }
 
 // declare type User = sdk.Models.Document & {
@@ -200,7 +171,7 @@ declare interface BankDropdownProps {
 
 declare interface BankTabItemProps {
   account: Account;
-  appwriteItemId?: string;
+  bankDocumentId?: string;
 }
 
 declare interface TotalBalanceBoxProps {
@@ -227,7 +198,7 @@ declare interface SiderbarProps {
 declare interface RecentTransactionsProps {
   accounts: Account[];
   transactions: Transaction[];
-  appwriteItemId: string;
+  bankDocumentId: string;
   page: number;
 }
 
@@ -262,7 +233,7 @@ declare interface getAccountsProps {
 }
 
 declare interface getAccountProps {
-  appwriteItemId: string;
+  bankDocumentId: string;
 }
 
 declare interface getInstitutionProps {
@@ -271,13 +242,6 @@ declare interface getInstitutionProps {
 
 declare interface getTransactionsProps {
   accessToken: string;
-}
-
-declare interface CreateFundingSourceOptions {
-  customerId: string; // Dwolla Customer ID
-  fundingSourceName: string; // Dwolla Funding Source Name
-  plaidToken: string; // Plaid Account Processor Token
-  _links: object; // Dwolla On Demand Authorization Link
 }
 
 declare interface CreateTransactionProps {
@@ -313,7 +277,6 @@ declare interface createBankAccountProps {
   userId: string;
   accountId: string;
   bankId: string;
-  fundingSourceUrl: string;
   shareableId: string;
 }
 

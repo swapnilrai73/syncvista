@@ -169,16 +169,6 @@ export function countTransactionCategories(
   return aggregatedCategories;
 }
 
-export function extractCustomerIdFromUrl(url: string) {
-  // Split the URL string by '/'
-  const parts = url.split("/");
-
-  // Extract the last part, which represents the customer ID
-  const customerId = parts[parts.length - 1];
-
-  return customerId;
-}
-
 export function encryptId(id: string) {
   return btoa(id);
 }
@@ -204,7 +194,9 @@ export const authFormSchema = (type: string) => z.object({
   state: type === 'sign-in' ? z.string().optional() : z.string().min(2).max(2),
   postalCode: type === 'sign-in' ? z.string().optional() : z.string().min(3).max(6),
   dateOfBirth: type === 'sign-in' ? z.string().optional() : z.string().min(3),
-  ssn: type === 'sign-in' ? z.string().optional() : z.string().min(3),
+  panNumber: type === 'sign-in'
+    ? z.string().optional()
+    : z.string().regex(/^[A-Z]{5}[0-9]{4}[A-Z]$/, 'PAN Number must match the standard format ABCDE1234F'),
   // both
   email: z.string().email(),
   password: z.string().min(8),

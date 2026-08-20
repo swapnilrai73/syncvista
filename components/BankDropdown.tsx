@@ -24,7 +24,7 @@ export const BankDropdown = ({
   const [selected, setSeclected] = useState(accounts[0]);
 
   const handleBankChange = (id: string) => {
-    const account = accounts.find((account) => account.appwriteItemId === id)!;
+    const account = accounts.find((account) => account.bankDocumentId === id)!;
 
     setSeclected(account);
     const newUrl = formUrlQuery({
@@ -66,7 +66,7 @@ export const BankDropdown = ({
           {accounts.map((account: Account) => (
             <SelectItem
               key={account.id}
-              value={account.appwriteItemId}
+              value={account.bankDocumentId}
               className="cursor-pointer border-t"
             >
               <div className="flex flex-col ">

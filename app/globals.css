@@ -256,16 +256,16 @@
     @apply flex gap-3 items-center p-4 rounded-lg w-full max-w-60;
   }
 
-  /* PlaidLink */
-  .plaidlink-primary {
+  /* SetuConnect */
+  .setuconnect-primary {
     @apply text-16 rounded-lg border border-bankGradient bg-bank-gradient font-semibold text-white shadow-form;
   }
 
-  .plaidlink-ghost {
+  .setuconnect-ghost {
     @apply flex cursor-pointer items-center justify-center gap-3 rounded-lg px-3 py-7 hover:bg-white lg:justify-start;
   }
 
-  .plaidlink-default {
+  .setuconnect-default {
     @apply flex !justify-start cursor-pointer gap-3 rounded-lg !bg-transparent flex-row;
   }
 

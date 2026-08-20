@@ -10,17 +10,17 @@ import {
   getAccountTypeColors,
 } from "@/lib/utils";
 
-const BankInfo = ({ account, appwriteItemId, type }: BankInfoProps) => {
+const BankInfo = ({ account, bankDocumentId, type }: BankInfoProps) => {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const isActive = appwriteItemId === account?.appwriteItemId;
+  const isActive = bankDocumentId === account?.bankDocumentId;
 
   const handleBankChange = () => {
     const newUrl = formUrlQuery({
       params: searchParams.toString(),
       key: "id",
-      value: account?.appwriteItemId,
+      value: account?.bankDocumentId,
     });
     router.push(newUrl, { scroll: false });
   };

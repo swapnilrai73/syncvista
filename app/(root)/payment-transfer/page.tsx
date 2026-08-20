@@ -1,28 +1,18 @@
 import HeaderBox from '@/components/HeaderBox'
-import PaymentTransferForm from '@/components/PaymentTransferForm'
-import { getAccounts } from '@/lib/actions/bank.actions';
-import { getLoggedInUser } from '@/lib/actions/user.actions';
 import React from 'react'
 
 const Transfer = async () => {
-  const loggedIn = await getLoggedInUser();
-  const accounts = await getAccounts({ 
-    userId: loggedIn.$id 
-  })
-
-  if(!accounts) return;
-  
-  const accountsData = accounts?.data;
-
   return (
     <section className="payment-transfer">
       <HeaderBox 
         title="Payment Transfer"
-        subtext="Please provide any specific details or notes related to the payment transfer"
+        subtext="Payment transfers are currently unavailable"
       />
 
       <section className="size-full pt-5">
-        <PaymentTransferForm accounts={accountsData} />
+        <p className="text-16 text-gray-600">
+          Connect and manage bank accounts through Setu AA. External payment transfers are not enabled.
+        </p>
       </section>
     </section>
   )

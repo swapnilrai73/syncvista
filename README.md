@@ -16,13 +16,13 @@ A modern multi-bank finance platform that enables users to connect multiple bank
 - Personalized financial insights
 
 ### 🏦 Multi-Bank Integration
-- Connect multiple bank accounts via **Plaid API**
+- Connect multiple bank accounts via **Setu Account Aggregator API**
 - View all connected banks with respective balances
 - Real-time synchronization across all accounts
 - Secure authentication and data encryption
 
 ### 💸 Fund Transfers
-- Transfer funds between accounts using **Dwolla** payment integration
+- Payment transfer route reserved for future integration
 - Recipient bank verification
 - Transaction status tracking
 - Transfer history with filtering options
@@ -43,11 +43,10 @@ A modern multi-bank finance platform that enables users to connect multiple bank
 
 - **Frontend:** Next.js 14, React 18, TypeScript
 - **Styling:** Tailwind CSS, Shadcn UI
-- **Backend:** Next.js API Routes, Appwrite
-- **Database:** Appwrite Database
-- **Authentication:** Appwrite Auth
-- **Bank Integration:** Plaid API
-- **Payment Processing:** Dwolla API
+- **Backend:** Next.js API Routes, Firebase
+- **Database:** Cloud Firestore
+- **Authentication:** Firebase Auth
+- **Bank Integration:** Setu Account Aggregator API
 - **Charts:** Chart.js / Recharts
 - **Form Handling:** React Hook Form, Zod
 
@@ -74,7 +73,7 @@ syncvista/
 ## 🔒 Security
 
 - All sensitive data is encrypted
-- Secure authentication with Appwrite
+- Secure authentication with Firebase Auth
 - HTTPS-only API communications
 - Environment variables for credentials
 - Regular security audits

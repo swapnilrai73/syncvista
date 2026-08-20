@@ -8,7 +8,7 @@ import { Pagination } from './Pagination'
 const RecentTransactions = ({
   accounts,
   transactions = [],
-  appwriteItemId,
+  bankDocumentId,
   page = 1,
 }: RecentTransactionsProps) => {
   const rowsPerPage = 10;
@@ -26,21 +26,21 @@ const RecentTransactions = ({
       <header className="flex items-center justify-between">
         <h2 className="recent-transactions-label">Recent transactions</h2>
         <Link
-          href={`/transaction-history/?id=${appwriteItemId}`}
+          href={`/transaction-history/?id=${bankDocumentId}`}
           className="view-all-btn"
         >
           View all
         </Link>
       </header>
 
-      <Tabs defaultValue={appwriteItemId} className="w-full">
+      <Tabs defaultValue={bankDocumentId} className="w-full">
       <TabsList className="recent-transactions-tablist">
           {accounts.map((account: Account) => (
-            <TabsTrigger key={account.id} value={account.appwriteItemId}>
+            <TabsTrigger key={account.id} value={account.bankDocumentId}>
               <BankTabItem
                 key={account.id}
                 account={account}
-                appwriteItemId={appwriteItemId}
+                bankDocumentId={bankDocumentId}
               />
             </TabsTrigger>
           ))}
@@ -48,13 +48,13 @@ const RecentTransactions = ({
 
         {accounts.map((account: Account) => (
           <TabsContent
-            value={account.appwriteItemId}
+            value={account.bankDocumentId}
             key={account.id}
             className="space-y-4"
           >
             <BankInfo 
               account={account}
-              appwriteItemId={appwriteItemId}
+              bankDocumentId={bankDocumentId}
               type="full"
             />
 

@@ -4,16 +4,16 @@ import { useSearchParams, useRouter } from "next/navigation";
 
 import { cn, formUrlQuery } from "@/lib/utils";
 
-export const BankTabItem = ({ account, appwriteItemId }: BankTabItemProps) => {
+export const BankTabItem = ({ account, bankDocumentId }: BankTabItemProps) => {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const isActive = appwriteItemId === account?.appwriteItemId;
+  const isActive = bankDocumentId === account?.bankDocumentId;
 
   const handleBankChange = () => {
     const newUrl = formUrlQuery({
       params: searchParams.toString(),
       key: "id",
-      value: account?.appwriteItemId,
+      value: account?.bankDocumentId,
     });
     router.push(newUrl, { scroll: false });
   };

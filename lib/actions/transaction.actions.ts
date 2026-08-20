@@ -1,30 +1,19 @@
 "use server";
 
-import { ID, Query } from "node-appwrite";
-import { createAdminClient } from "../appwrite";
+import { addDoc, collection, getDocs, query, where } from "firebase/firestore";
+import { db } from "../firebase";
 import { parseStringify } from "../utils";
-
-const {
-  APPWRITE_DATABASE_ID: DATABASE_ID,
-  APPWRITE_TRANSACTION_COLLECTION_ID: TRANSACTION_COLLECTION_ID,
-} = process.env;
 
 export const createTransaction = async (transaction: CreateTransactionProps) => {
   try {
-    const { database } = await createAdminClient();
+    const newTransaction = await addDoc(collection(db, "transactions"), {
+      channel: 'online',
+      category: 'Transfer',
+      ...transaction,
+      $createdAt: new Date().toISOString(),
+    });
 
-    const newTransaction = await database.createDocument(
-      DATABASE_ID!,
-      TRANSACTION_COLLECTION_ID!,
-      ID.unique(),
-      {
-        channel: 'online',
-        category: 'Transfer',
-        ...transaction
-      }
-    )
-
-    return parseStringify(newTransaction);
+    return parseStringify({ $id: newTransaction.id, ...transaction });
   } catch (error) {
     console.log(error);
   }
@@ -32,25 +21,18 @@ export const createTransaction = async (transaction: CreateTransactionProps) => 
 
 export const getTransactionsByBankId = async ({bankId}: getTransactionsByBankIdProps) => {
   try {
-    const { database } = await createAdminClient();
-
-    const senderTransactions = await database.listDocuments(
-      DATABASE_ID!,
-      TRANSACTION_COLLECTION_ID!,
-      [Query.equal('senderBankId', bankId)],
-    )
-
-    const receiverTransactions = await database.listDocuments(
-      DATABASE_ID!,
-      TRANSACTION_COLLECTION_ID!,
-      [Query.equal('receiverBankId', bankId)],
+    const senderTransactions = await getDocs(
+      query(collection(db, "transactions"), where("senderBankId", "==", bankId))
+    );
+    const receiverTransactions = await getDocs(
+      query(collection(db, "transactions"), where("receiverBankId", "==", bankId))
     );
 
     const transactions = {
-      total: senderTransactions.total + receiverTransactions.total,
+      total: senderTransactions.size + receiverTransactions.size,
       documents: [
-        ...senderTransactions.documents, 
-        ...receiverTransactions.documents,
+        ...senderTransactions.docs.map((transaction) => ({ $id: transaction.id, ...transaction.data() })),
+        ...receiverTransactions.docs.map((transaction) => ({ $id: transaction.id, ...transaction.data() })),
       ]
     }
 
