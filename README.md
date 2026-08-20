@@ -1,4 +1,4 @@
-# 🏦 Banking Web App with Finance Management Dashboard
+# 🏦 SyncVista Finance Management Dashboard
 
 A modern multi-bank finance platform that enables users to connect multiple bank accounts, track real-time transactions, transfer funds, and manage their finances in one unified dashboard.
 
@@ -56,7 +56,7 @@ A modern multi-bank finance platform that enables users to connect multiple bank
 ## 📁 Project Structure
 
 ```
-banking-app/
+syncvista/
 ├── app/                    # Next.js app directory
 │   ├── (auth)/            # Authentication pages
 │   ├── (root)/            # Main application pages
