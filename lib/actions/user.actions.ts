@@ -31,8 +31,12 @@ export const signIn = async ({ email, password }: signInProps) => {
 
     return parseStringify(user);
   } catch (error) {
-    console.error('Error', error);
-    throw error;
+    console.error("SignUp Server Error:", error);
+    return {
+      error: error instanceof Error
+        ? error.message
+        : "Unable to create your account.",
+    };
   }
 }
 

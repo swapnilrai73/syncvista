@@ -87,6 +87,9 @@ declare type Bank = {
   consentId: string;
   userId: string;
   shareableId: string;
+  mock?: boolean;
+  status?: string;
+  accountData?: any;
 };
 
 declare type AccountTypes =

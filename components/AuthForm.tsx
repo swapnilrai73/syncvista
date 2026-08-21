@@ -78,6 +78,10 @@ const AuthForm = ({ type }: { type: string }) => {
             throw new Error('Unable to create your account. Check the server configuration and try again.');
           }
 
+          if ('error' in newUser) {
+            throw new Error(newUser.error);
+          }
+
           setUser(newUser);
         }
 
@@ -90,8 +94,12 @@ const AuthForm = ({ type }: { type: string }) => {
           if(response) router.push('/')
         }
       } catch (error) {
-        console.error(error);
-        setErrorMessage(error instanceof Error ? error.message : 'Unable to complete authentication.');
+        console.error('Authentication submit error:', error);
+        setErrorMessage(
+          error instanceof Error
+            ? error.message
+            : 'Unable to complete authentication.'
+        );
       } finally {
         setIsLoading(false);
       }
