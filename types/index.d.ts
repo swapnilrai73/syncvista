@@ -250,11 +250,10 @@ declare interface getTransactionsProps {
 declare interface CreateTransactionProps {
   name: string;
   amount: string;
-  senderId: string;
   senderBankId: string;
-  receiverId: string;
-  receiverBankId: string;
-  email: string;
+  receiverBankId?: string;
+  transferMode: string;
+  note?: string;
 }
 
 declare interface getTransactionsByBankIdProps {
@@ -293,4 +292,25 @@ declare interface getBankProps {
 
 declare interface getBankByAccountIdProps {
   accountId: string;
+}
+
+declare type InvestmentSummary = {
+  totalPortfolioValue: number;
+  equity: number;
+  mutualFunds: number;
+  unparsedHoldings: number;
+};
+
+declare interface CasUploadCardProps {
+  userId: string;
+}
+
+declare interface getInvestmentSummaryProps {
+  userId: string;
+}
+
+declare interface parseCasProps {
+  file: File;
+  password: string;
+  userId: string;
 }

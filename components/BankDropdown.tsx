@@ -39,9 +39,17 @@ export const BankDropdown = ({
     }
   };
 
+  if (!selected || accounts.length === 0) {
+    return (
+      <div className={`flex h-10 w-full bg-gray-100 rounded-md items-center px-3 ${otherStyles}`}>
+        <p className="text-gray-500 text-sm">Loading accounts...</p>
+      </div>
+    );
+  }
+
   return (
     <Select
-      defaultValue={selected.id}
+      defaultValue={selected.bankDocumentId}
       onValueChange={(value) => handleBankChange(value)}
     >
       <SelectTrigger

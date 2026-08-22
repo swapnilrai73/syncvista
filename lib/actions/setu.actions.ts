@@ -13,7 +13,7 @@ type SetuConfig = {
   productInstanceId: string;
 };
 
-const getSetuConfig = (): SetuConfig => {
+const getSetuConfig = (): SetuConfig | null => {
   const environment = (process.env.SETU_ENV || "sandbox") as SetuEnvironment;
   const baseUrl = environment === "production"
     ? "https://fiu.setu.co"
@@ -21,7 +21,8 @@ const getSetuConfig = (): SetuConfig => {
 
   const { SETU_CLIENT_ID, SETU_CLIENT_SECRET, SETU_PRODUCT_INSTANCE_ID } = process.env;
   if (!SETU_CLIENT_ID || !SETU_CLIENT_SECRET || !SETU_PRODUCT_INSTANCE_ID) {
-    throw new Error("Setu credentials are not configured");
+    console.warn("Setu credentials not configured, falling back to mock mode");
+    return null;
   }
 
   return {
@@ -96,7 +97,10 @@ const getMockAccountData = () => ({
 
 export const createSetuConsent = async (user: User) => {
   try {
-    if (process.env.SETU_ENV === "sandbox") {
+    const config = getSetuConfig();
+    
+    // Fallback to mock mode if credentials not configured
+    if (!config || process.env.SETU_ENV === "sandbox") {
       const consentId = `mock-${user.$id}`;
       await setDoc(doc(db, "banks", consentId), {
         userId: user.$id,
@@ -117,7 +121,6 @@ export const createSetuConsent = async (user: User) => {
       });
     }
 
-    const config = getSetuConfig();
     const accessToken = await getSetuAccessToken(config);
     const response = await fetch(`${config.baseUrl}/v2/consents`, {
       method: "POST",
@@ -127,7 +130,7 @@ export const createSetuConsent = async (user: User) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        vua: process.env.SETU_VUA || (process.env.SETU_ENV === "sandbox" ? "9999999999@onemoney" : user.email),
+        vua: process.env.SETU_VUA || user.email,
         consentDuration: { unit: "MONTH", value: 1 },
         consentMode: "VIEW",
         fetchType: "ONETIME",
@@ -184,14 +187,16 @@ export const createSetuConsent = async (user: User) => {
 
 export const getSetuAccountData = async (consentId: string) => {
   try {
-    if (process.env.SETU_ENV === "sandbox") {
+    const config = getSetuConfig();
+    
+    // Fallback to mock mode if credentials not configured
+    if (!config || process.env.SETU_ENV === "sandbox") {
       const bank = await getDoc(doc(db, "banks", consentId));
       return bank.exists() && bank.data().accountData
         ? parseStringify(bank.data().accountData)
         : parseStringify(getMockAccountData());
     }
 
-    const config = getSetuConfig();
     const accessToken = await getSetuAccessToken(config);
     const response = await fetch(`${config.baseUrl}/v2/consents/${consentId}/data`, {
       headers: { Authorization: `Bearer ${accessToken}` },
@@ -206,5 +211,42 @@ export const getSetuAccountData = async (consentId: string) => {
   } catch (error) {
     console.error("Setu account data request failed:", error);
     throw error;
+  }
+};
+
+export const pollConsentStatus = async (consentId: string): Promise<string> => {
+  try {
+    const config = getSetuConfig();
+    
+    // Fallback to mock mode if credentials not configured
+    if (!config || process.env.SETU_ENV === "sandbox") {
+      return "APPROVED";
+    }
+
+    const accessToken = await getSetuAccessToken(config);
+    const response = await fetch(`${config.baseUrl}/v2/consents/${consentId}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      throw new Error(`Setu consent status check failed (${response.status})`);
+    }
+
+    const data = await response.json();
+    return data.status || "PENDING";
+  } catch (error) {
+    console.error("Setu consent status polling failed:", error);
+    return "FAILED";
+  }
+};
+
+export const updateConsentStatus = async (consentId: string, status: string) => {
+  try {
+    await setDoc(doc(db, "banks", consentId), { status }, { merge: true });
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to update consent status:", error);
+    return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
   }
 };
