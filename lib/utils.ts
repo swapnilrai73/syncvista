@@ -8,6 +8,30 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+export const CATEGORY_STYLES: Record<
+  string,
+  { bg: string; text: string; barHex: string; chipBg: string }
+> = {
+  Subscription: { bg: "bg-purple-100", text: "text-purple-700", barHex: "#9333ea", chipBg: "bg-purple-50" },
+  Shopping: { bg: "bg-blue-100", text: "text-blue-700", barHex: "#2563eb", chipBg: "bg-blue-50" },
+  Dining: { bg: "bg-amber-100", text: "text-amber-700", barHex: "#d97706", chipBg: "bg-amber-50" },
+  Entertainment: { bg: "bg-pink-100", text: "text-pink-700", barHex: "#db2777", chipBg: "bg-pink-50" },
+  "Fuel/Transport": { bg: "bg-orange-100", text: "text-orange-700", barHex: "#ea580c", chipBg: "bg-orange-50" },
+  Utilities: { bg: "bg-emerald-100", text: "text-emerald-700", barHex: "#059669", chipBg: "bg-emerald-50" },
+  Groceries: { bg: "bg-teal-100", text: "text-teal-700", barHex: "#0d9488", chipBg: "bg-teal-50" },
+  Rent: { bg: "bg-rose-100", text: "text-rose-700", barHex: "#e11d48", chipBg: "bg-rose-50" },
+  Salary: { bg: "bg-green-100", text: "text-green-700", barHex: "#16a34a", chipBg: "bg-green-50" },
+};
+
+export const getCategoryStyle = (category: string) => {
+  return CATEGORY_STYLES[category] || {
+    bg: "bg-gray-100",
+    text: "text-gray-700",
+    barHex: "#4b5563",
+    chipBg: "bg-gray-50",
+  };
+};
+
 // FORMAT DATE TIME
 export const formatDateTime = (dateString: Date) => {
   const dateTimeOptions: Intl.DateTimeFormatOptions = {

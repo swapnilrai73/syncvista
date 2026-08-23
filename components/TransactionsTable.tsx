@@ -7,21 +7,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { transactionCategoryStyles } from "@/constants"
-import { cn, formatAmount, formatDateTime, getTransactionStatus, removeSpecialCharacters } from "@/lib/utils"
+import { cn, formatAmount, formatDateTime, getCategoryStyle, getTransactionStatus, removeSpecialCharacters } from "@/lib/utils"
 
 const CategoryBadge = ({ category }: CategoryBadgeProps) => {
-  const {
-    borderColor,
-    backgroundColor,
-    textColor,
-    chipBackgroundColor,
-   } = transactionCategoryStyles[category as keyof typeof transactionCategoryStyles] || transactionCategoryStyles.default
-   
+  const style = getCategoryStyle(category)
+
   return (
-    <div className={cn('category-badge', borderColor, chipBackgroundColor)}>
-      <div className={cn('size-2 rounded-full', backgroundColor)} />
-      <p className={cn('text-[12px] font-medium', textColor)}>{category}</p>
+    <div className={cn("category-badge", style.bg)}>
+      <div
+        className="size-2 rounded-full"
+        style={{ backgroundColor: style.barHex }}
+      />
+      <p className={cn("text-[12px] font-medium", style.text)}>{category}</p>
     </div>
   )
 } 
