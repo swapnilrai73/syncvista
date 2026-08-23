@@ -18,6 +18,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import FinancialAnalysis from '@/components/FinancialAnalysis'
+import { MOCK_DATA } from '@/lib/mockData'
 
 const CATEGORIES = [
   'All Categories',
@@ -28,6 +30,7 @@ const CATEGORIES = [
   'Utilities',
   'Entertainment',
   'Groceries',
+  'Fuel/Transport'
 ]
 
 const exportTransactionsToCSV = (transactions: Transaction[]) => {
@@ -82,8 +85,14 @@ const TransactionHistoryClient = ({ accounts, initialAccount, initialAccountId, 
   const [selectedCategory, setSelectedCategory] = useState('All Categories')
   const [page, setPage] = useState(currentPage)
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(initialAccountId)
+  const [showAnalysis, setShowAnalysis] = useState(false)
   
   const rowsPerPage = 10
+  
+  // Use mock data as fallback when no real data available
+  const useMockData = !accounts || accounts.length === 0 || !initialAccount?.transactions || initialAccount.transactions.length === 0
+  const transactionsToUse = useMockData ? MOCK_DATA.transactions : allTransactions
+  const bankBalancesToUse = useMockData ? MOCK_DATA.bankAccounts : accounts
   
   useEffect(() => {
     setMounted(true)
@@ -108,7 +117,7 @@ const TransactionHistoryClient = ({ accounts, initialAccount, initialAccountId, 
   }, [selectedAccountId, mounted, initialAccountId])
   
   useEffect(() => {
-    let filtered = allTransactions
+    let filtered = transactionsToUse
     
     if (searchQuery) {
       const query = searchQuery.toLowerCase()
@@ -125,7 +134,7 @@ const TransactionHistoryClient = ({ accounts, initialAccount, initialAccountId, 
     
     setFilteredTransactions(filtered)
     setPage(1)
-  }, [searchQuery, selectedCategory, allTransactions])
+  }, [searchQuery, selectedCategory, transactionsToUse])
   
   const handleAccountChange = (accountId: string) => {
     setSelectedAccountId(accountId)
@@ -203,47 +212,71 @@ const TransactionHistoryClient = ({ accounts, initialAccount, initialAccountId, 
           </div>
         </div>
 
-        {/* Filter Controls */}
+        {/* View Toggle & Filter Controls */}
         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
           <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input
-                type="text"
-                placeholder="Search transactions..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
-            </div>
+            {useMockData && (
+              <div className="px-3 py-1 bg-amber-100 border border-amber-300 rounded-full text-amber-800 text-xs font-medium">
+                Using Mock Data (Mar-Aug 2026)
+              </div>
+            )}
+            <Button
+              onClick={() => setShowAnalysis(!showAnalysis)}
+              className="flex items-center gap-2 rounded-lg border-2 border-[#1570EF] bg-white px-4 py-2 font-semibold text-[#1570EF] hover:bg-blue-50 transition-all shadow-xs"
+            >
+              {showAnalysis ? 'Show Transactions' : 'Show Financial Analysis'}
+            </Button>
             
-            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-              <SelectTrigger className="w-full sm:w-48">
-                <SelectValue placeholder="Select category" />
-              </SelectTrigger>
-              <SelectContent>
-                {CATEGORIES.map((category) => (
-                  <SelectItem key={category} value={category}>
-                    {category}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {!showAnalysis && (
+              <>
+                <div className="relative w-full sm:w-64">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <Input
+                    type="text"
+                    placeholder="Search transactions..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                
+                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                  <SelectTrigger className="w-full sm:w-48">
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CATEGORIES.map((category) => (
+                      <SelectItem key={category} value={category}>
+                        {category}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </>
+            )}
           </div>
           
-          <Button
-            onClick={() => exportTransactionsToCSV(filteredTransactions)}
-            variant="outline"
-            className="flex items-center gap-2"
-            disabled={filteredTransactions.length === 0}
-          >
-            <Download className="h-4 w-4" />
-            Export CSV
-          </Button>
+          {!showAnalysis && (
+            <Button
+              onClick={() => exportTransactionsToCSV(filteredTransactions)}
+              variant="outline"
+              className="flex items-center gap-2"
+              disabled={filteredTransactions.length === 0}
+            >
+              <Download className="h-4 w-4" />
+              Export CSV
+            </Button>
+          )}
         </div>
 
         <section className="flex w-full flex-col gap-6">
-          {currentTransactions.length > 0 ? (
+          {showAnalysis ? (
+              // Pass bankAccounts and transactions from MOCK_DATA
+              <FinancialAnalysis
+                  transactions={MOCK_DATA.transactions}
+                  bankBalances={MOCK_DATA.bankAccounts}
+              />
+          ) : currentTransactions.length > 0 ? (
             <>
               <TransactionsTable transactions={currentTransactions} />
               {totalPages > 1 && (

@@ -6,6 +6,7 @@ import CasUploadCard from '@/components/CasUploadCard';
 import { getLoggedInUser } from '@/lib/actions/user.actions';
 import { getInvestmentSummary } from '@/lib/actions/investment.actions';
 import { TrendingUp, PieChart, BarChart3, Wallet } from 'lucide-react';
+import { MOCK_DATA } from '@/lib/mockData';
 
 const Investments = () => {
   const [loggedIn, setLoggedIn] = useState<User | null>(null);

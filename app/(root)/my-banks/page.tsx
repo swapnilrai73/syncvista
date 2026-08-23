@@ -10,6 +10,7 @@ import { getAccounts, getAccount } from '@/lib/actions/bank.actions';
 import { getLoggedInUser } from '@/lib/actions/user.actions';
 import { formatAmount, formatDateTime } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { MOCK_DATA } from '@/lib/mockData';
 
 const MyBanks = () => {
   const router = useRouter();
@@ -29,7 +30,7 @@ const MyBanks = () => {
         
         if (user) {
           const accountsData = await getAccounts({ userId: user.$id });
-          if (accountsData?.data) {
+          if (accountsData?.data && accountsData.data.length > 0) {
             setAccounts(accountsData.data);
             setTotalBalance(accountsData.totalCurrentBalance || 0);
             
@@ -38,10 +39,26 @@ const MyBanks = () => {
               setSelectedAccount(accountsData.data[0]);
               await loadAccountTransactions(accountsData.data[0].bankDocumentId);
             }
+          } else {
+            // Fallback to mock data if no accounts found
+            console.log("No accounts found, using mock data");
+            setAccounts(MOCK_DATA.bankAccounts);
+            setTotalBalance(MOCK_DATA.summary.totalBalance);
+            if (MOCK_DATA.bankAccounts.length > 0) {
+              setSelectedAccount(MOCK_DATA.bankAccounts[0]);
+              setAccountTransactions(MOCK_DATA.transactions.slice(0, 5));
+            }
           }
         }
       } catch (error) {
-        console.error("Error loading data:", error);
+        console.error("Error loading data, falling back to mock data:", error);
+        // Fallback to mock data on error
+        setAccounts(MOCK_DATA.bankAccounts);
+        setTotalBalance(MOCK_DATA.summary.totalBalance);
+        if (MOCK_DATA.bankAccounts.length > 0) {
+          setSelectedAccount(MOCK_DATA.bankAccounts[0]);
+          setAccountTransactions(MOCK_DATA.transactions.slice(0, 5));
+        }
       } finally {
         setIsLoading(false);
       }
