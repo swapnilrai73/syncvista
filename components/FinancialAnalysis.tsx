@@ -207,12 +207,12 @@ const FinancialAnalysis = ({ transactions = [], bankBalances = [], investmentSum
       ? monthlyCashFlow[monthlyCashFlow.length - 1]
       : { inflow: 0, outflow: 0, net: 0, month: '' }
 
-  const grossInflow = (latestCf.inflow || latestCf.income || latestCf.credits) ??
+  const grossInflow = latestCf.inflow ??
       (financialHealth.savingsRate < 100
           ? latestCf.outflow / (1 - financialHealth.savingsRate / 100)
           : latestCf.outflow)
 
-  const grossOutflow = latestCf.outflow || latestCf.expenses || latestCf.debits || 0
+  const grossOutflow = latestCf.outflow || 0
   const retainedAmount = Math.max(0, grossInflow - grossOutflow)
 
   const expenseRatio = grossInflow > 0 ? Math.min(100, (grossOutflow / grossInflow) * 100) : 0

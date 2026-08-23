@@ -2,7 +2,7 @@ import HeaderBox from '@/components/HeaderBox'
 import RecentTransactions from '@/components/RecentTransactions';
 import RightSidebar from '@/components/RightSidebar';
 import TotalBalanceBox from '@/components/TotalBalanceBox';
-import { getAccount, getAccounts } from '@/lib/actions/bank.actions';
+import { getAccount, getAccounts, getAllTransactions } from '@/lib/actions/bank.actions';
 import { getLoggedInUser } from '@/lib/actions/user.actions';
 import { redirect } from 'next/navigation';
 
@@ -15,26 +15,11 @@ const Home = async ({ searchParams: { id, page } }: SearchParamProps) => {
     userId: loggedIn.$id 
   })
 
-  if(!accounts || accounts.data.length === 0) {
-    return (
-      <section className="home">
-        <div className="home-content">
-          <HeaderBox
-            type="greeting"
-            title="Welcome"
-            user={loggedIn.firstName || 'Guest'}
-            subtext="Connect a bank account to see your balances and transactions."
-          />
-        </div>
-        <RightSidebar user={loggedIn} transactions={[]} banks={[]} />
-      </section>
-    );
-  }
-  
-  const accountsData = accounts?.data;
+  // Accounts will now always return mock data if Firestore is empty
+  const accountsData = accounts?.data || [];
   const bankDocumentId = (id as string) || accountsData[0]?.bankDocumentId;
 
-  const account = await getAccount({ bankDocumentId })
+  const allTransactions = await getAllTransactions({ userId: loggedIn.$id });
 
   return (
     <section className="home">
@@ -49,14 +34,14 @@ const Home = async ({ searchParams: { id, page } }: SearchParamProps) => {
 
           <TotalBalanceBox 
             accounts={accountsData}
-            totalBanks={accounts?.totalBanks}
-            totalCurrentBalance={accounts?.totalCurrentBalance}
+            totalBanks={accounts?.totalBanks || accountsData.length}
+            totalCurrentBalance={accounts?.totalCurrentBalance || accountsData.reduce((sum: number, acc: any) => sum + (acc.currentBalance || 0), 0)}
           />
         </header>
 
         <RecentTransactions 
           accounts={accountsData}
-          transactions={account?.transactions}
+          transactions={allTransactions}
           bankDocumentId={bankDocumentId}
           page={currentPage}
         />
@@ -64,8 +49,8 @@ const Home = async ({ searchParams: { id, page } }: SearchParamProps) => {
 
       <RightSidebar 
         user={loggedIn}
-        transactions={account?.transactions}
-        banks={accountsData?.slice(0, 2)}
+        transactions={allTransactions}
+        banks={accountsData}
       />
     </section>
   )

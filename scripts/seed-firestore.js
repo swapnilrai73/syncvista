@@ -1,14 +1,15 @@
 /**
- * Mock Seed Data for testuser2
- *
- * Updated with realistic salary-to-expense ratios so inflow exceeds outflow,
- * giving proper retained income calculations, clean sparkline trends, and 14 active subscriptions.
+ * Firestore Seed Script
+ * Populates Firestore with mock bank accounts and transactions for testuser2
  */
 
-export const MOCK_USER_ID = "testuser2";
+require('dotenv').config({ path: '.env.local' });
+const { initializeApp, getApps, getApp } = require("firebase/app");
+const { getFirestore, collection, addDoc, query, where, getDocs, deleteDoc, doc } = require("firebase/firestore");
 
-// Bank Accounts for testuser2
-export const MOCK_BANK_ACCOUNTS = [
+const MOCK_USER_ID = "testuser2";
+
+const MOCK_BANK_ACCOUNTS = [
   {
     id: "bank_hdfc_savings",
     bankDocumentId: "bank_hdfc_savings",
@@ -45,24 +46,7 @@ export const MOCK_BANK_ACCOUNTS = [
   },
 ];
 
-// Expense Categories
-export const EXPENSE_CATEGORIES = {
-  essential: [
-    { id: "rent", name: "Rent", monthlyAmount: 25000 },
-    { id: "groceries", name: "Groceries", monthlyAmount: 8500 },
-    { id: "utilities", name: "Utilities", monthlyAmount: 3200 },
-    { id: "fuel_transport", name: "Fuel/Transport", monthlyAmount: 4500 },
-  ],
-  discretionary: [
-    { id: "dining", name: "Dining & Food Delivery", monthlyAmount: 3500 },
-    { id: "shopping", name: "Shopping", monthlyAmount: 4000 },
-    { id: "travel", name: "Travel", monthlyAmount: 2000 },
-    { id: "entertainment", name: "Entertainment", monthlyAmount: 1500 },
-  ],
-};
-
-// 14 Recurring Subscriptions for Leakage Tracking
-export const SUBSCRIPTIONS = [
+const SUBSCRIPTIONS = [
   { id: "aws_cloud", name: "AWS Hosting", merchant: "AWS Cloud Services", averageAmount: 2450, frequency: "Monthly", category: "Software", startDate: "2026-01-01" },
   { id: "chatgpt_plus", name: "ChatGPT Plus", merchant: "OpenAI ChatGPT", averageAmount: 1650, frequency: "Monthly", category: "Software", startDate: "2026-01-01" },
   { id: "cult_fit", name: "Cult.fit Pass", merchant: "Cult.fit Gym", averageAmount: 1250, frequency: "Monthly", category: "Healthcare", startDate: "2026-01-01" },
@@ -79,22 +63,11 @@ export const SUBSCRIPTIONS = [
   { id: "notion_plus", name: "Notion Personal", merchant: "Notion AI", averageAmount: 415, frequency: "Monthly", category: "Software", startDate: "2026-01-01" },
 ];
 
-// Helper function to generate transaction ID
-const generateTransactionId = (type: string, date: string): string => {
+const generateTransactionId = (type, date) => {
   return `TXN_${type}_${date.replace(/-/g, "")}_${Math.floor(Math.random() * 1000)}`;
 };
 
-// Helper function to create transaction
-const createTransaction = (
-    id: string,
-    name: string,
-    amount: number,
-    type: "credit" | "debit",
-    category: string,
-    date: string,
-    bankId: string,
-    paymentChannel: string = "online"
-) => ({
+const createTransaction = (id, name, amount, type, category, date, bankId, paymentChannel = "online") => ({
   $id: id,
   transactionId: generateTransactionId(type, date),
   name,
@@ -105,17 +78,14 @@ const createTransaction = (
   paymentChannel,
   senderBankId: type === "debit" ? bankId : null,
   receiverBankId: type === "credit" ? bankId : null,
-  accountId: bankId,
-  bankDocumentId: bankId,
   pending: false,
   status: "Success",
   channel: paymentChannel,
   $createdAt: date,
 });
 
-// Generate 6 months of historical transactions (March 2026 - August 2026)
-export const generateHistoricalTransactions = () => {
-  const transactions: any[] = [];
+const generateHistoricalTransactions = () => {
+  const transactions = [];
   const months = [
     { year: 2026, month: 3, name: "March", salary: 210000 },
     { year: 2026, month: 4, name: "April", salary: 210000 },
@@ -134,16 +104,16 @@ export const generateHistoricalTransactions = () => {
 
     // Monthly Salary Credit (Inflow)
     transactions.push(
-        createTransaction(
-            `txn_${transactionCounter++}`,
-            "Monthly Salary Credit",
-            salary,
-            "credit",
-            "Salary",
-            salaryDate,
-            salaryBankId,
-            "bank_transfer"
-        )
+      createTransaction(
+        `txn_${transactionCounter++}`,
+        "Monthly Salary Credit",
+        salary,
+        "credit",
+        "Salary",
+        salaryDate,
+        salaryBankId,
+        "bank_transfer"
+      )
     );
 
     // Fixed Essential Expenses
@@ -157,16 +127,16 @@ export const generateHistoricalTransactions = () => {
     essentialExpenses.forEach((expense) => {
       const date = `${monthStr}-${String(expense.day).padStart(2, "0")}`;
       transactions.push(
-          createTransaction(
-              `txn_${transactionCounter++}`,
-              expense.name,
-              expense.amount,
-              "debit",
-              expense.category,
-              date,
-              expense.bankId,
-              "online"
-          )
+        createTransaction(
+          `txn_${transactionCounter++}`,
+          expense.name,
+          expense.amount,
+          "debit",
+          expense.category,
+          date,
+          expense.bankId,
+          "online"
+        )
       );
     });
 
@@ -174,16 +144,16 @@ export const generateHistoricalTransactions = () => {
     SUBSCRIPTIONS.forEach((sub, idx) => {
       const day = Math.min(28, (idx * 2) + 1);
       transactions.push(
-          createTransaction(
-              `txn_${transactionCounter++}`,
-              sub.merchant,
-              sub.averageAmount,
-              "debit",
-              "Subscription",
-              `${monthStr}-${String(day).padStart(2, "0")}`,
-              "bank_icici_salary",
-              "online"
-          )
+        createTransaction(
+          `txn_${transactionCounter++}`,
+          sub.merchant,
+          sub.averageAmount,
+          "debit",
+          "Subscription",
+          `${monthStr}-${String(day).padStart(2, "0")}`,
+          "bank_icici_salary",
+          "online"
+        )
       );
     });
 
@@ -199,16 +169,16 @@ export const generateHistoricalTransactions = () => {
     discretionaryExpenses.forEach((expense) => {
       const date = `${monthStr}-${String(expense.day).padStart(2, "0")}`;
       transactions.push(
-          createTransaction(
-              `txn_${transactionCounter++}`,
-              expense.name,
-              expense.amount,
-              "debit",
-              expense.category,
-              date,
-              expense.bankId,
-              "online"
-          )
+        createTransaction(
+          `txn_${transactionCounter++}`,
+          expense.name,
+          expense.amount,
+          "debit",
+          expense.category,
+          date,
+          expense.bankId,
+          "online"
+        )
       );
     });
   });
@@ -216,27 +186,107 @@ export const generateHistoricalTransactions = () => {
   return transactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 };
 
-export const MOCK_TRANSACTIONS = generateHistoricalTransactions();
+const MOCK_TRANSACTIONS = generateHistoricalTransactions();
 
-export const MOCK_DATA_SUMMARY = {
-  totalBankAccounts: MOCK_BANK_ACCOUNTS.length,
-  totalBalance: MOCK_BANK_ACCOUNTS.reduce((sum, acc) => sum + acc.currentBalance, 0),
-  totalTransactions: MOCK_TRANSACTIONS.length,
-  dateRange: {
-    start: "2026-03-01",
-    end: "2026-08-31",
-  },
-  monthlySalary: 240000,
-  essentialExpensesTotal: 41200,
-  subscriptionsCount: SUBSCRIPTIONS.length,
-  subscriptionLeakageTotal: SUBSCRIPTIONS.reduce((sum, s) => sum + s.averageAmount, 0),
+const firebaseConfig = {
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-export const MOCK_DATA = {
-  userId: MOCK_USER_ID,
-  bankAccounts: MOCK_BANK_ACCOUNTS,
-  transactions: MOCK_TRANSACTIONS,
-  categories: EXPENSE_CATEGORIES,
-  subscriptions: SUBSCRIPTIONS,
-  summary: MOCK_DATA_SUMMARY,
-};
+const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+async function clearExistingData() {
+  console.log("Clearing existing data for testuser2...");
+  
+  // Clear existing banks
+  const banksQuery = query(collection(db, "banks"), where("userId", "==", MOCK_USER_ID));
+  const banksSnapshot = await getDocs(banksQuery);
+  for (const bankDoc of banksSnapshot.docs) {
+    await deleteDoc(doc(db, "banks", bankDoc.id));
+  }
+  
+  // Clear existing transactions for this user
+  const bankIds = MOCK_BANK_ACCOUNTS.map(b => b.bankDocumentId);
+  if (bankIds.length > 0) {
+    const transactionsQuery = query(collection(db, "transactions"), where("senderBankId", "in", bankIds));
+    const transactionsSnapshot = await getDocs(transactionsQuery);
+    for (const txnDoc of transactionsSnapshot.docs) {
+      await deleteDoc(doc(db, "transactions", txnDoc.id));
+    }
+  }
+  
+  console.log("Cleared existing data.");
+}
+
+async function seedBankAccounts() {
+  console.log("Seeding bank accounts...");
+  
+  for (const bankAccount of MOCK_BANK_ACCOUNTS) {
+    await addDoc(collection(db, "banks"), {
+      userId: bankAccount.userId,
+      accountId: bankAccount.accountId,
+      shareableId: bankAccount.shareableId,
+      bankName: bankAccount.bankName,
+      consentId: bankAccount.consentId,
+      currentBalance: bankAccount.currentBalance,
+      availableBalance: bankAccount.availableBalance,
+      mask: bankAccount.mask,
+      type: bankAccount.type,
+      subtype: bankAccount.subtype,
+      institutionId: bankAccount.institutionId,
+      name: bankAccount.name,
+      officialName: bankAccount.officialName,
+      mock: true,
+    });
+  }
+  
+  console.log(`Seeded ${MOCK_BANK_ACCOUNTS.length} bank accounts.`);
+}
+
+async function seedTransactions() {
+  console.log("Seeding transactions...");
+  
+  let count = 0;
+  for (const transaction of MOCK_TRANSACTIONS) {
+    await addDoc(collection(db, "transactions"), {
+      transactionId: transaction.transactionId,
+      name: transaction.name,
+      amount: transaction.amount,
+      type: transaction.type,
+      category: transaction.category,
+      date: transaction.date,
+      paymentChannel: transaction.paymentChannel,
+      channel: transaction.channel,
+      senderBankId: transaction.senderBankId,
+      receiverBankId: transaction.receiverBankId,
+      pending: transaction.pending,
+      status: transaction.status,
+      $createdAt: transaction.$createdAt,
+    });
+    count++;
+  }
+  
+  console.log(`Seeded ${count} transactions.`);
+}
+
+async function main() {
+  try {
+    console.log("Starting Firestore seed for testuser2...");
+    console.log("Project ID:", process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID);
+    console.log("Firebase Config:", JSON.stringify(firebaseConfig, null, 2));
+    await clearExistingData();
+    await seedBankAccounts();
+    await seedTransactions();
+    console.log("Seed completed successfully!");
+  } catch (error) {
+    console.error("Error seeding Firestore:", error);
+    process.exit(1);
+  }
+}
+
+main();

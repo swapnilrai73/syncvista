@@ -72,15 +72,16 @@ interface TransactionHistoryClientProps {
   initialAccount: any
   initialAccountId: string
   currentPage: number
+  initialAllTransactions?: Transaction[]
 }
 
-const TransactionHistoryClient = ({ accounts, initialAccount, initialAccountId, currentPage }: TransactionHistoryClientProps) => {
+const TransactionHistoryClient = ({ accounts, initialAccount, initialAccountId, currentPage, initialAllTransactions }: TransactionHistoryClientProps) => {
   const searchParams = useSearchParams()
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
   const [currentAccount, setCurrentAccount] = useState<any>(initialAccount)
-  const [allTransactions, setAllTransactions] = useState<Transaction[]>(initialAccount?.transactions || [])
-  const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>(initialAccount?.transactions || [])
+  const [allTransactions, setAllTransactions] = useState<Transaction[]>(initialAllTransactions || initialAccount?.transactions || [])
+  const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>(initialAllTransactions || initialAccount?.transactions || [])
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('All Categories')
   const [page, setPage] = useState(currentPage)
@@ -90,7 +91,7 @@ const TransactionHistoryClient = ({ accounts, initialAccount, initialAccountId, 
   const rowsPerPage = 10
   
   // Use mock data as fallback when no real data available
-  const useMockData = !accounts || accounts.length === 0 || !initialAccount?.transactions || initialAccount.transactions.length === 0
+  const useMockData = !accounts || accounts.length === 0 || (!initialAllTransactions && !initialAccount?.transactions) || (initialAllTransactions && initialAllTransactions.length === 0)
   const transactionsToUse = useMockData ? MOCK_DATA.transactions : allTransactions
   const bankBalancesToUse = useMockData ? MOCK_DATA.bankAccounts : accounts
   
@@ -118,6 +119,16 @@ const TransactionHistoryClient = ({ accounts, initialAccount, initialAccountId, 
   
   useEffect(() => {
     let filtered = transactionsToUse
+
+    // Filter by selected account if one is selected
+    if (selectedAccountId) {
+      filtered = filtered.filter((t) =>
+        t.bankDocumentId === selectedAccountId ||
+        t.accountId === selectedAccountId ||
+        t.senderBankId === selectedAccountId ||
+        t.receiverBankId === selectedAccountId
+      )
+    }
     
     if (searchQuery) {
       const query = searchQuery.toLowerCase()
@@ -134,7 +145,7 @@ const TransactionHistoryClient = ({ accounts, initialAccount, initialAccountId, 
     
     setFilteredTransactions(filtered)
     setPage(1)
-  }, [searchQuery, selectedCategory, transactionsToUse])
+  }, [searchQuery, selectedCategory, transactionsToUse, selectedAccountId])
   
   const handleAccountChange = (accountId: string) => {
     setSelectedAccountId(accountId)
@@ -145,6 +156,7 @@ const TransactionHistoryClient = ({ accounts, initialAccount, initialAccountId, 
   const handleAllAccounts = () => {
     setSelectedAccountId(null)
     setPage(1)
+    setAllTransactions(initialAllTransactions || [])
     router.push('/transaction-history')
   }
   
@@ -197,18 +209,25 @@ const TransactionHistoryClient = ({ accounts, initialAccount, initialAccountId, 
 
         <div className="transactions-account">
           <div className="flex flex-col gap-2">
-            <h2 className="text-18 font-bold text-white">{currentAccount?.data.name}</h2>
+            <h2 className="text-18 font-bold text-white">
+              {selectedAccountId ? (currentAccount?.data?.name || currentAccount?.name || 'Account') : 'All Accounts'}
+            </h2>
             <p className="text-14 text-blue-25">
-              {currentAccount?.data.officialName}
+              {selectedAccountId ? (currentAccount?.data?.officialName || currentAccount?.officialName || `${accounts.length} bank accounts`) : `${accounts.length} bank accounts`}
             </p>
             <p className="text-14 font-semibold tracking-[1.1px] text-white">
-              ●●●● ●●●● ●●●● {currentAccount?.data.mask}
+              {selectedAccountId ? `●●●● ●●●● ●●●● ${currentAccount?.data?.mask || currentAccount?.mask || ''}` : ''}
             </p>
           </div>
           
           <div className='transactions-account-balance'>
             <p className="text-14">Current balance</p>
-            <p className="text-24 text-center font-bold">{formatAmount(currentAccount?.data.currentBalance)}</p>
+            <p className="text-24 text-center font-bold">
+              {selectedAccountId 
+                ? formatAmount(currentAccount?.data?.currentBalance || currentAccount?.currentBalance || 0)
+                : formatAmount(accounts.reduce((sum, acc) => sum + (acc.currentBalance || 0), 0))
+              }
+            </p>
           </div>
         </div>
 
