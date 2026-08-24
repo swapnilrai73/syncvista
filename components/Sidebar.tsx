@@ -14,16 +14,19 @@ const Sidebar = ({ user }: SiderbarProps) => {
   return (
     <section className="sidebar">
       <nav className="flex flex-col gap-4">
-        <Link href="/" className="mb-12 cursor-pointer flex items-center gap-2">
-          <Image 
-            src="/icons/logo.svg"
-            width={34}
-            height={34}
-            alt="SyncVista logo"
-            className="size-[24px] max-xl:size-14"
-          />
-          <h1 className="sidebar-logo">SyncVista</h1>
-        </Link>
+      <Link href="/" className="mb-12 cursor-pointer flex items-center gap-3">
+  <Image 
+    src="/icons/logo.svg"
+    width={48}
+    height={48}
+    alt="SyncVista logo"
+    className="size-12 object-contain max-xl:size-10"
+  />
+  <h1 className="text-[28px] leading-none font-bold tracking-tight text-[#012053] max-xl:hidden font-sans">
+    <span className="font-extrabold">Sync</span>
+    <span className="font-normal">Vista</span>
+  </h1>
+</Link>
 
         {sidebarLinks.map((item) => {
           const isActive = pathname === item.route || pathname.startsWith(`${item.route}/`)

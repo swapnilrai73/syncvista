@@ -86,7 +86,9 @@ const TransactionHistoryClient = ({ accounts, initialAccount, initialAccountId, 
   const [selectedCategory, setSelectedCategory] = useState('All Categories')
   const [page, setPage] = useState(currentPage)
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(initialAccountId)
-  const [showAnalysis, setShowAnalysis] = useState(false)
+  const [showAnalysis, setShowAnalysis] = useState<boolean>(
+    Boolean(searchParams.get('view') === 'analysis')
+  )
   
   const rowsPerPage = 10
   
@@ -95,6 +97,14 @@ const TransactionHistoryClient = ({ accounts, initialAccount, initialAccountId, 
   const transactionsToUse = useMockData ? MOCK_DATA.transactions : allTransactions
   const bankBalancesToUse = useMockData ? MOCK_DATA.bankAccounts : accounts
   
+  useEffect(() => {
+    if (searchParams.get('view') === 'analysis') {
+      setShowAnalysis(true)
+    } else {
+      setShowAnalysis(false)
+    }
+  }, [searchParams])
+
   useEffect(() => {
     setMounted(true)
   }, [])
@@ -147,18 +157,21 @@ const TransactionHistoryClient = ({ accounts, initialAccount, initialAccountId, 
     setPage(1)
   }, [searchQuery, selectedCategory, transactionsToUse, selectedAccountId])
   
-  const handleAccountChange = (accountId: string) => {
-    setSelectedAccountId(accountId)
-    setPage(1)
-    router.push(`/transaction-history?id=${accountId}`)
-  }
   
-  const handleAllAccounts = () => {
-    setSelectedAccountId(null)
-    setPage(1)
-    setAllTransactions(initialAllTransactions || [])
-    router.push('/transaction-history')
-  }
+const handleAccountChange = (accountId: string) => {
+  setSelectedAccountId(accountId)
+  setPage(1)
+  const viewQuery = showAnalysis ? '&view=analysis' : ''
+  router.push(`/transaction-history?id=${accountId}${viewQuery}`)
+}
+
+const handleAllAccounts = () => {
+  setSelectedAccountId(null)
+  setPage(1)
+  setAllTransactions(initialAllTransactions || [])
+  const viewQuery = showAnalysis ? '?view=analysis' : ''
+  router.push(`/transaction-history${viewQuery}`)
+}
   
   const totalPages = Math.ceil(filteredTransactions.length / rowsPerPage)
   const indexOfLastTransaction = page * rowsPerPage
@@ -239,12 +252,23 @@ const TransactionHistoryClient = ({ accounts, initialAccount, initialAccountId, 
                 Using Mock Data (Mar-Aug 2026)
               </div>
             )}
-            <Button
-              onClick={() => setShowAnalysis(!showAnalysis)}
-              className="flex items-center gap-2 rounded-lg border-2 border-[#1570EF] bg-white px-4 py-2 font-semibold text-[#1570EF] hover:bg-blue-50 transition-all shadow-xs"
-            >
-              {showAnalysis ? 'Show Transactions' : 'Show Financial Analysis'}
-            </Button>
+<Button
+  onClick={() => {
+    setShowAnalysis((prev) => {
+      const nextState = !prev
+      const baseUrl = selectedAccountId 
+        ? `/transaction-history?id=${selectedAccountId}` 
+        : '/transaction-history'
+      const queryDelimiter = selectedAccountId ? '&' : '?'
+      
+      router.push(nextState ? `${baseUrl}${queryDelimiter}view=analysis` : baseUrl)
+      return nextState
+    })
+  }}
+  className="flex items-center gap-2 rounded-lg border-2 border-[#1570EF] bg-white px-4 py-2 font-semibold text-[#1570EF] hover:bg-blue-50 transition-all shadow-xs"
+>
+  {showAnalysis ? 'Show Transactions' : 'Show Financial Analysis'}
+</Button>
             
             {!showAnalysis && (
               <>

@@ -19,15 +19,27 @@ const RecentTransactions = ({
 
   return (
     <section className="recent-transactions">
-      <header className="flex items-center justify-between">
-        <h2 className="recent-transactions-label">Recent transactions</h2>
+    <header className="flex items-center justify-between">
+      <h2 className="recent-transactions-label">Recent transactions</h2>
+      
+      <div className="flex items-center gap-3">
+        {/* Show Financial Analysis Button */}
+        <Link
+  href={`/transaction-history/?id=${selectedTab}&view=analysis`}
+  className="flex items-center gap-2 rounded-lg border border-[#012053]/20 bg-[#012053]/5 px-3.5 py-2 text-14 font-semibold text-[#012053] transition-all hover:bg-[#012053] hover:text-white"
+>
+  <span>Show financial analysis</span>
+</Link>
+  
+        {/* Existing View All Link */}
         <Link
           href={`/transaction-history/?id=${selectedTab}`}
           className="view-all-btn"
         >
           View all
         </Link>
-      </header>
+      </div>
+    </header>
 
       <Tabs defaultValue={selectedTab} className="w-full" onValueChange={setSelectedTab}>
       <TabsList className="recent-transactions-tablist">
