@@ -220,29 +220,29 @@ const handleAllAccounts = () => {
           </Tabs>
         </div>
 
-        <div className="transactions-account">
-          <div className="flex flex-col gap-2">
-            <h2 className="text-18 font-bold text-white">
-              {selectedAccountId ? (currentAccount?.data?.name || currentAccount?.name || 'Account') : 'All Accounts'}
-            </h2>
-            <p className="text-14 text-blue-25">
-              {selectedAccountId ? (currentAccount?.data?.officialName || currentAccount?.officialName || `${accounts.length} bank accounts`) : `${accounts.length} bank accounts`}
-            </p>
-            <p className="text-14 font-semibold tracking-[1.1px] text-white">
-              {selectedAccountId ? `●●●● ●●●● ●●●● ${currentAccount?.data?.mask || currentAccount?.mask || ''}` : ''}
-            </p>
-          </div>
-          
-          <div className='transactions-account-balance'>
-            <p className="text-14">Current balance</p>
-            <p className="text-24 text-center font-bold">
-              {selectedAccountId 
-                ? formatAmount(currentAccount?.data?.currentBalance || currentAccount?.currentBalance || 0)
-                : formatAmount(accounts.reduce((sum, acc) => sum + (acc.currentBalance || 0), 0))
-              }
-            </p>
-          </div>
-        </div>
+        <div className="flex flex-col justify-between gap-4 rounded-xl bg-[#002766] p-6 text-white shadow-md md:flex-row md:items-center">
+  <div className="flex flex-col gap-2">
+    <h2 className="text-18 font-bold text-white">
+      {selectedAccountId ? (currentAccount?.data?.name || currentAccount?.name || 'Account') : 'All Accounts'}
+    </h2>
+    <p className="text-14 text-blue-100/80">
+      {selectedAccountId ? (currentAccount?.data?.officialName || currentAccount?.officialName || `${accounts.length} bank accounts`) : `${accounts.length} bank accounts`}
+    </p>
+    <p className="text-14 font-semibold tracking-[1.1px] text-white">
+      {selectedAccountId ? `●●●● ●●●● ●●●● ${currentAccount?.data?.mask || currentAccount?.mask || ''}` : ''}
+    </p>
+  </div>
+  
+  <div className="flex flex-col items-center justify-center gap-1 rounded-lg bg-white/10 px-5 py-3 backdrop-blur-sm border border-white/10 text-white">
+    <p className="text-14 text-blue-100/90">Current balance</p>
+    <p className="text-24 text-center font-bold text-white">
+      {selectedAccountId 
+        ? formatAmount(currentAccount?.data?.currentBalance || currentAccount?.currentBalance || 0)
+        : formatAmount(accounts.reduce((sum, acc) => sum + (acc.currentBalance || 0), 0))
+      }
+    </p>
+  </div>
+</div>
 
         {/* View Toggle & Filter Controls */}
         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
