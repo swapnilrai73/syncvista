@@ -2,7 +2,8 @@ export const dynamic = 'force-dynamic'
 
 import type { Metadata } from "next";
 import { Inter, IBM_Plex_Serif } from "next/font/google";
-import "./globals.css";
+import AIChatWidget from "@/components/AIChatWidget";
+import "@/app/globals.css";
 import { Toaster } from "sonner";
 
 const inter = Inter({ subsets: ["latin"], variable: '--font-inter' });
@@ -30,6 +31,7 @@ export default function RootLayout({
       <body className={`${inter.variable} ${ibmPlexSerif.variable}`}>
         {children}
         <Toaster />
+        <AIChatWidget />
       </body>
     </html>
   );

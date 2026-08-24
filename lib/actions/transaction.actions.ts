@@ -84,3 +84,4 @@ export const getTransactionsByBankId = async ({bankId}: getTransactionsByBankIdP
     return parseStringify({ total: 0, documents: [] });
   }
 }
+
