@@ -24,12 +24,38 @@ export const CATEGORY_STYLES: Record<
 };
 
 export const getCategoryStyle = (category: string) => {
-  return CATEGORY_STYLES[category] || {
-    bg: "bg-gray-100",
-    text: "text-gray-700",
-    barHex: "#4b5563",
-    chipBg: "bg-gray-50",
-  };
+  switch (category) {
+    case "Success":
+      return {
+        bg: "bg-emerald-50 border border-emerald-200",
+        circleBg: "bg-emerald-500",
+        text: "text-emerald-700",
+        barHex: "#10b981",
+      };
+    case "Processing":
+    case "Pending":
+      return {
+        bg: "bg-blue-50 border border-blue-200",
+        circleBg: "bg-blue-500",
+        text: "text-blue-700",
+        barHex: "#3b82f6",
+      };
+    case "Failed":
+      return {
+        bg: "bg-rose-50 border border-rose-200",
+        circleBg: "bg-rose-500",
+        text: "text-rose-700",
+        barHex: "#f43f5e",
+      };
+    // ... keep existing category styles below
+    default:
+      return {
+        bg: "bg-gray-100",
+        circleBg: "bg-gray-500",
+        text: "text-gray-700",
+        barHex: "#6b7280",
+      };
+  }
 };
 
 // FORMAT DATE TIME
