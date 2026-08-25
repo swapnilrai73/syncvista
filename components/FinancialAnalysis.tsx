@@ -22,7 +22,6 @@ interface FinancialAnalysisProps {
 }
 
 const FinancialAnalysis = ({ transactions = [], bankBalances = [], investmentSummary }: FinancialAnalysisProps) => {
-  // Filter out credits/salary so only debit/expense transactions enter subscription analysis
   const expenseOnlyTransactions = transactions.filter((t: any) => {
     const isDebitType = t.type ? t.type.toLowerCase() === 'debit' : true
     const isNotSalaryCategory = (t.category || '').toLowerCase() !== 'salary' && (t.name || '').toLowerCase() !== 'monthly salary credit'
@@ -32,7 +31,6 @@ const FinancialAnalysis = ({ transactions = [], bankBalances = [], investmentSum
   const financialHealth = calculateFinancialHealth(transactions)
   const rawSubscriptions = detectSubscriptions(expenseOnlyTransactions)
 
-  // Extra safety filter to exclude any salary or credit item from subscription leakage
   const subscriptions = rawSubscriptions.filter((sub: any) => {
     const name = (sub.merchant || sub.name || '').toLowerCase()
     const cat = (sub.category || '').toLowerCase()
@@ -60,7 +58,6 @@ const FinancialAnalysis = ({ transactions = [], bankBalances = [], investmentSum
     value: cat.amount,
   }))
 
-  // Chronological Sorting (Oldest -> Newest)
   const monthMap: Record<string, number> = {
     Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5,
     Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11
@@ -74,15 +71,12 @@ const FinancialAnalysis = ({ transactions = [], bankBalances = [], investmentSum
     return dateA - dateB
   })
 
-  // Card 1 Fix: Explicit date handling and hard fallback guarantees
   const groupedCashFlowData = chronologicallySortedCashFlow.map((cf: any) => {
-    // Standardize month strings (e.g., "Jan 2026")
     const parts = (cf.month || '').trim().split(' ')
     const mName = parts[0]
     const yr = parseInt(parts[1] || '2026', 10)
     const mIdx = monthMap[mName] ?? -1
 
-    // Robust transaction matching across ISO, UTC, and standard formats
     const monthTxns = transactions.filter((t: any) => {
       const rawDate = t.date || t.$createdAt || t.createdAt
       if (!rawDate) return false
@@ -91,7 +85,6 @@ const FinancialAnalysis = ({ transactions = [], bankBalances = [], investmentSum
       return d.getMonth() === mIdx && d.getFullYear() === yr
     })
 
-    // Calculate Inflow using explicit transaction type / category checks
     const computedInflow = monthTxns.reduce((sum: number, t: any) => {
       const isCredit = t.type?.toLowerCase() === 'credit'
       const isSalary = (t.category || '').toLowerCase() === 'salary'
@@ -99,7 +92,6 @@ const FinancialAnalysis = ({ transactions = [], bankBalances = [], investmentSum
       return (isCredit || isSalary || isPositive) ? sum + Math.abs(t.amount || 0) : sum
     }, 0)
 
-    // Fallback order: Explicit calculation -> Engine properties -> Safe Default (0.01 prevents zero-hiding bugs)
     const fallbackInflow = cf.inflow ?? cf.income ?? cf.credits ?? cf.totalInflow ?? 0
     const finalInflow = computedInflow > 0 ? computedInflow : Math.abs(Number(fallbackInflow) || 0)
 
@@ -119,7 +111,6 @@ const FinancialAnalysis = ({ transactions = [], bankBalances = [], investmentSum
     }
   })
 
-  // Net Cash Flow for Trend Sparks
   const cashFlowChartData = chronologicallySortedCashFlow.map((cf: any) => ({
     date: cf.month,
     'Net Cash Flow': cf.net,
@@ -132,7 +123,6 @@ const FinancialAnalysis = ({ transactions = [], bankBalances = [], investmentSum
   const burnRatePercent = financialHealth.burnRate > 0 ? Math.min((financialHealth.burnRate / (netWorth * 0.1)) * 100, 100) : 0
   const runwayPercent = Math.min((runwayMonths / targetRunway) * 100, 100)
 
-  // Card 3 Data Mapping: Stacked Essential vs Discretionary
   const discretionaryEssentialData = chronologicallySortedCashFlow.map((cf: any) => {
     const cfDate = new Date(`1 ${cf.month}`)
     const targetMonth = cfDate.getMonth()
@@ -172,7 +162,6 @@ const FinancialAnalysis = ({ transactions = [], bankBalances = [], investmentSum
     }
   })
 
-  // Card 4 Data Mapping: Subscription Leakage Breakdown
   const subscriptionChartData = subscriptions
       .map((sub: any) => {
         const amount = sub.averageAmount || sub.amount || 0
@@ -234,7 +223,7 @@ const FinancialAnalysis = ({ transactions = [], bankBalances = [], investmentSum
           <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <Zap className="h-5 w-5 text-blue-600" />
+                <Zap className="h-5 w-5 text-[#002766]" />
                 <Text className="text-slate-800 font-semibold">Burn Rate</Text>
               </div>
               <Text className="text-slate-500 text-xs">vs threshold</Text>
@@ -247,7 +236,7 @@ const FinancialAnalysis = ({ transactions = [], bankBalances = [], investmentSum
                 </div>
                 <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
                   <div
-                      className="h-full bg-blue-600 rounded-full transition-all duration-500"
+                      className="h-full bg-[#002766] rounded-full transition-all duration-500"
                       style={{ width: `${burnRatePercent}%` }}
                   />
                 </div>
@@ -339,7 +328,7 @@ const FinancialAnalysis = ({ transactions = [], bankBalances = [], investmentSum
             <div>
               <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden flex mb-3">
                 <div
-                    className="h-full bg-blue-500 transition-all duration-500"
+                    className="h-full bg-[#002766] transition-all duration-500"
                     style={{ width: `${retainedRatio}%` }}
                 />
                 <div
@@ -354,7 +343,7 @@ const FinancialAnalysis = ({ transactions = [], bankBalances = [], investmentSum
                   <Text className="text-slate-600">Expenses: {formatAmount(grossOutflow)}</Text>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#002766] inline-block" />
                   <Text className="text-slate-600">Retained: {formatAmount(retainedAmount)}</Text>
                 </div>
               </div>
@@ -373,7 +362,7 @@ const FinancialAnalysis = ({ transactions = [], bankBalances = [], investmentSum
 
               <div className="space-y-1.5 mt-2">
                 <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#002766] inline-block" />
                   <Text className="text-xs text-slate-600">Saved ({financialHealth.savingsRate.toFixed(0)}%)</Text>
                 </div>
                 <div className="flex items-center gap-2">
@@ -383,7 +372,7 @@ const FinancialAnalysis = ({ transactions = [], bankBalances = [], investmentSum
               </div>
             </div>
 
-            <div className="h-28 w-28 relative flex items-center justify-center [&_p]:!hidden [&_text]:!hidden [&_tspan]:!hidden">
+            <div className="h-28 w-28 relative flex items-center justify-center [&_p]:!hidden [&_text]:!hidden [&_tspan]:!hidden [&_.recharts-pie-sector:first-child]:!fill-[#002766]">
               <DonutChart
                   className="h-28 w-28"
                   data={[
@@ -392,7 +381,7 @@ const FinancialAnalysis = ({ transactions = [], bankBalances = [], investmentSum
                   ]}
                   category="value"
                   index="name"
-                  colors={['blue-500', 'slate-200']}
+                  colors={['blue-900', 'slate-200']}
                   showTooltip={false}
                   valueFormatter={() => ''}
               />
@@ -409,7 +398,7 @@ const FinancialAnalysis = ({ transactions = [], bankBalances = [], investmentSum
               <div className="space-y-3">
                 <div>
                   <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />
+                    <span className="w-2 h-2 rounded-full bg-[#002766] inline-block" />
                     <Text className="text-xs text-slate-500">Current</Text>
                   </div>
                   <Metric className="text-xl font-bold text-slate-800">{formatAmount(netWorth)}</Metric>
@@ -427,13 +416,13 @@ const FinancialAnalysis = ({ transactions = [], bankBalances = [], investmentSum
               </div>
             </div>
 
-            <div className="w-1/2 h-28 flex flex-col justify-end">
+            <div className="w-1/2 h-28 flex flex-col justify-end [&_.recharts-area-area]:!fill-[#002766]/20 [&_.recharts-area-curve]:!stroke-[#002766]">
               <AreaChart
                   className="h-20"
                   data={cashFlowChartData}
                   index="date"
                   categories={['Net Cash Flow']}
-                  colors={['blue']}
+                  colors={['blue-900']}
                   showLegend={false}
                   showYAxis={false}
                   showXAxis={false}
@@ -452,7 +441,7 @@ const FinancialAnalysis = ({ transactions = [], bankBalances = [], investmentSum
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
           {/* Card 1: Side-by-Side Grouped Cash Flow */}
-          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
+          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs [&_.recharts-bar-rectangle:first-child_path]:!fill-[#002766] [&_.recharts-legend-item:first-child_.recharts-legend-item-text]:!text-[#002766]">
             <div className="mb-2">
               <h3 className="text-base font-semibold text-slate-800 tracking-tight">Cash Flow Trajectory</h3>
               <p className="text-xs text-slate-500 mt-0.5">Inflow vs outflow comparisons per monthly period</p>
@@ -462,7 +451,7 @@ const FinancialAnalysis = ({ transactions = [], bankBalances = [], investmentSum
                 data={groupedCashFlowData}
                 index="date"
                 categories={['Inflow', 'Outflow']}
-                colors={['blue-500', 'rose-500']}
+                colors={['blue-900', 'rose-500']}
                 valueFormatter={(val: number) => formatAmount(val)}
                 showLegend={true}
                 showYAxis={true}
@@ -473,7 +462,7 @@ const FinancialAnalysis = ({ transactions = [], bankBalances = [], investmentSum
           </div>
 
           {/* Card 2: Category Risk Breakdown */}
-          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
+          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs [&_.recharts-bar-rectangle_path]:!fill-[#002766]">
             <div className="mb-2">
               <h3 className="text-base font-semibold text-slate-800 tracking-tight">Category Risk Breakdown</h3>
               <p className="text-xs text-slate-500 mt-0.5">Spending distribution across primary risk categories</p>
@@ -483,7 +472,7 @@ const FinancialAnalysis = ({ transactions = [], bankBalances = [], investmentSum
                 data={expenseCategoriesData}
                 index="name"
                 categories={['value']}
-                colors={['blue-500']}
+                colors={['blue-900']}
                 valueFormatter={(val: number) => formatAmount(val)}
                 showLegend={false}
                 showYAxis={true}
@@ -504,7 +493,7 @@ const FinancialAnalysis = ({ transactions = [], bankBalances = [], investmentSum
                 data={discretionaryEssentialData}
                 index="date"
                 categories={['Essential Fixed Costs', 'Discretionary Spend']}
-                colors={['emerald-500', 'emerald-900']}
+                colors={['emerald-600', 'indigo-900']}
                 stack={true}
                 valueFormatter={(val: number) => formatAmount(val)}
                 showLegend={true}
@@ -526,7 +515,7 @@ const FinancialAnalysis = ({ transactions = [], bankBalances = [], investmentSum
                 data={subscriptionChartData}
                 index="name"
                 categories={['Monthly Spend']}
-                colors={['violet-500']}
+                colors={['violet-600']}
                 valueFormatter={(val: number) => formatAmount(val)}
                 showLegend={false}
                 showYAxis={true}

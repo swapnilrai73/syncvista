@@ -1,12 +1,11 @@
 "use client"
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { Search, Download } from 'lucide-react'
 import HeaderBox from '@/components/HeaderBox'
 import { Pagination } from '@/components/Pagination'
 import TransactionsTable from '@/components/TransactionsTable'
-import { getAccount } from '@/lib/actions/bank.actions'
 import { formatAmount } from '@/lib/utils'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -33,40 +32,6 @@ const CATEGORIES = [
   'Fuel/Transport'
 ]
 
-const exportTransactionsToCSV = (transactions: Transaction[]) => {
-  const headers = ['Date', 'Transaction Name', 'Amount (INR)', 'Status', 'Channel', 'Category']
-  
-  const rows = transactions.map((t) => {
-    const status = new Date(t.date) > new Date(Date.now() - 2 * 24 * 60 * 60 * 1000) ? 'Processing' : 'Success'
-    const amount = new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      minimumFractionDigits: 2,
-    }).format(t.amount)
-    
-    return [
-      new Date(t.date).toLocaleDateString('en-US'),
-      t.name.replace(/[^\w\s]/gi, ''),
-      amount,
-      status,
-      t.paymentChannel,
-      t.category,
-    ].join(',')
-  })
-  
-  const csvContent = [headers.join(','), ...rows].join('\n')
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-  const link = document.createElement('a')
-  const url = URL.createObjectURL(blob)
-  
-  link.setAttribute('href', url)
-  link.setAttribute('download', `syncvista_transactions_${new Date().toISOString().split('T')[0]}.csv`)
-  link.style.visibility = 'hidden'
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-}
-
 interface TransactionHistoryClientProps {
   accounts: Account[]
   initialAccount: any
@@ -75,116 +40,115 @@ interface TransactionHistoryClientProps {
   initialAllTransactions?: Transaction[]
 }
 
-const TransactionHistoryClient = ({ accounts, initialAccount, initialAccountId, currentPage, initialAllTransactions }: TransactionHistoryClientProps) => {
+const TransactionHistoryClient = ({ 
+  accounts = [], 
+  initialAccount, 
+  initialAccountId, 
+  currentPage, 
+  initialAllTransactions = [] 
+}: TransactionHistoryClientProps) => {
   const searchParams = useSearchParams()
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
-  const [currentAccount, setCurrentAccount] = useState<any>(initialAccount)
-  const [allTransactions, setAllTransactions] = useState<Transaction[]>(initialAllTransactions || initialAccount?.transactions || [])
-  const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>(initialAllTransactions || initialAccount?.transactions || [])
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('All Categories')
   const [page, setPage] = useState(currentPage)
-  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(initialAccountId)
-  const [showAnalysis, setShowAnalysis] = useState<boolean>(
-    Boolean(searchParams.get('view') === 'analysis')
-  )
   
+  const selectedAccountId = searchParams.get('id') || null
+  const showAnalysis = searchParams.get('view') === 'analysis'
   const rowsPerPage = 10
-  
-  // Use mock data as fallback when no real data available
-  const useMockData = !accounts || accounts.length === 0 || (!initialAllTransactions && !initialAccount?.transactions) || (initialAllTransactions && initialAllTransactions.length === 0)
-  const transactionsToUse = useMockData ? MOCK_DATA.transactions : allTransactions
-  const bankBalancesToUse = useMockData ? MOCK_DATA.bankAccounts : accounts
-  
-  useEffect(() => {
-    if (searchParams.get('view') === 'analysis') {
-      setShowAnalysis(true)
-    } else {
-      setShowAnalysis(false)
-    }
-  }, [searchParams])
 
   useEffect(() => {
     setMounted(true)
   }, [])
-  
-  useEffect(() => {
-    const fetchAccountData = async () => {
-      if (selectedAccountId && selectedAccountId !== initialAccountId) {
-        try {
-          const accountData = await getAccount({ bankDocumentId: selectedAccountId })
-          setCurrentAccount(accountData)
-          setAllTransactions(accountData?.transactions || [])
-        } catch (error) {
-          console.error('Error fetching account data:', error)
-        }
-      }
-    }
-    
-    if (mounted) {
-      fetchAccountData()
-    }
-  }, [selectedAccountId, mounted, initialAccountId])
-  
-  useEffect(() => {
-    let filtered = transactionsToUse
 
-    // Filter by selected account if one is selected
-    if (selectedAccountId) {
-      filtered = filtered.filter((t) =>
-        t.bankDocumentId === selectedAccountId ||
-        t.accountId === selectedAccountId ||
-        t.senderBankId === selectedAccountId ||
-        t.receiverBankId === selectedAccountId
+  // 1. Resolve Accounts and Transactions source (Fallback to MOCK_DATA cleanly)
+  const effectiveAccounts = useMemo(() => {
+    if (accounts && accounts.length > 0) return accounts
+    return MOCK_DATA.bankAccounts || []
+  }, [accounts])
+
+  const effectiveTransactions = useMemo(() => {
+    if (initialAllTransactions && initialAllTransactions.length > 0) return initialAllTransactions
+    if (initialAccount?.transactions && initialAccount.transactions.length > 0) return initialAccount.transactions
+    return MOCK_DATA.transactions || []
+  }, [initialAllTransactions, initialAccount])
+
+  // 2. Filter Transactions based on selected account ID
+  const activeTransactions = useMemo(() => {
+    if (!selectedAccountId || selectedAccountId === 'all') {
+      return effectiveTransactions
+    }
+
+    return effectiveTransactions.filter((t: any) => {
+      const accId = String(selectedAccountId)
+      return (
+        String(t.bankDocumentId) === accId ||
+        String(t.accountId) === accId ||
+        String(t.bankId) === accId ||
+        String(t.senderBankId) === accId ||
+        String(t.receiverBankId) === accId
+      )
+    })
+  }, [effectiveTransactions, selectedAccountId])
+
+  // 3. Filter Transactions for Table View (Search & Category)
+  const filteredTableTransactions = useMemo(() => {
+    return activeTransactions.filter((t: any) => {
+      const matchesSearch = searchQuery === '' || 
+        t.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        t.paymentChannel?.toLowerCase().includes(searchQuery.toLowerCase())
+      
+      const matchesCategory = selectedCategory === 'All Categories' || t.category === selectedCategory
+
+      return matchesSearch && matchesCategory
+    })
+  }, [activeTransactions, searchQuery, selectedCategory])
+
+  // 4. Current Selected Account Object
+  const currentAccountObj = useMemo(() => {
+    if (!selectedAccountId) return null
+    return effectiveAccounts.find((a: any) => 
+      String(a.bankDocumentId || a.id || a.$id) === String(selectedAccountId)
+    ) || initialAccount
+  }, [effectiveAccounts, selectedAccountId, initialAccount])
+
+  // 5. Current Balance Calculation
+  const displayCurrentBalance = useMemo(() => {
+    if (currentAccountObj) {
+      return Number(
+        currentAccountObj.currentBalance ?? 
+        currentAccountObj.balance ?? 
+        currentAccountObj.availableBalance ?? 
+        0
       )
     }
-    
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase()
-      filtered = filtered.filter(
-        (t) =>
-          t.name.toLowerCase().includes(query) ||
-          t.paymentChannel.toLowerCase().includes(query)
-      )
-    }
-    
-    if (selectedCategory !== 'All Categories') {
-      filtered = filtered.filter((t) => t.category === selectedCategory)
-    }
-    
-    setFilteredTransactions(filtered)
+    return effectiveAccounts.reduce((sum: number, acc: any) => {
+      const bal = acc.currentBalance ?? acc.balance ?? acc.availableBalance ?? 0
+      return sum + Number(bal)
+    }, 0)
+  }, [currentAccountObj, effectiveAccounts])
+
+  const handleAccountChange = (accountId: string) => {
     setPage(1)
-  }, [searchQuery, selectedCategory, transactionsToUse, selectedAccountId])
-  
-  
-const handleAccountChange = (accountId: string) => {
-  setSelectedAccountId(accountId)
-  setPage(1)
-  const viewQuery = showAnalysis ? '&view=analysis' : ''
-  router.push(`/transaction-history?id=${accountId}${viewQuery}`)
-}
-
-const handleAllAccounts = () => {
-  setSelectedAccountId(null)
-  setPage(1)
-  setAllTransactions(initialAllTransactions || [])
-  const viewQuery = showAnalysis ? '?view=analysis' : ''
-  router.push(`/transaction-history${viewQuery}`)
-}
-  
-  const totalPages = Math.ceil(filteredTransactions.length / rowsPerPage)
-  const indexOfLastTransaction = page * rowsPerPage
-  const indexOfFirstTransaction = indexOfLastTransaction - rowsPerPage
-  const currentTransactions = filteredTransactions.slice(
-    indexOfFirstTransaction,
-    indexOfLastTransaction
-  )
-  
-  if (!mounted) {
-    return <div className="p-8">Loading...</div>
+    const viewQuery = showAnalysis ? '&view=analysis' : ''
+    router.push(`/transaction-history?id=${accountId}${viewQuery}`)
   }
-  
+
+  const handleAllAccounts = () => {
+    setPage(1)
+    const viewQuery = showAnalysis ? '?view=analysis' : ''
+    router.push(`/transaction-history${viewQuery}`)
+  }
+
+  const totalPages = Math.ceil(filteredTableTransactions.length / rowsPerPage)
+  const currentTransactions = filteredTableTransactions.slice(
+    (page - 1) * rowsPerPage,
+    page * rowsPerPage
+  )
+
+  if (!mounted) return <div className="p-8">Loading...</div>
+
   return (
     <div className="transactions">
       <div className="transactions-header">
@@ -195,9 +159,9 @@ const handleAllAccounts = () => {
       </div>
 
       <div className="space-y-6">
-        {/* Account Navigation Tabs */}
+        {/* Navigation Tabs */}
         <div className="w-full overflow-x-auto pb-2">
-          <Tabs defaultValue={selectedAccountId || 'all'} className="w-full">
+          <Tabs value={selectedAccountId || 'all'} className="w-full">
             <TabsList className="inline-flex h-10 items-center justify-start rounded-md bg-muted p-1 w-full overflow-x-auto">
               <TabsTrigger
                 value="all"
@@ -206,119 +170,71 @@ const handleAllAccounts = () => {
               >
                 All Accounts
               </TabsTrigger>
-              {accounts.map((account) => (
-                <TabsTrigger
-                  key={account.bankDocumentId}
-                  value={account.bankDocumentId}
-                  onClick={() => handleAccountChange(account.bankDocumentId)}
-                  className={selectedAccountId === account.bankDocumentId ? 'bg-background text-foreground' : ''}
-                >
-                  {account.name}
-                </TabsTrigger>
-              ))}
+              {effectiveAccounts.map((account: any) => {
+                const accId = account.bankDocumentId || account.id || account.$id
+                return (
+                  <TabsTrigger
+                    key={accId}
+                    value={accId}
+                    onClick={() => handleAccountChange(accId)}
+                    className={selectedAccountId === accId ? 'bg-background text-foreground' : ''}
+                  >
+                    {account.name}
+                  </TabsTrigger>
+                )
+              })}
             </TabsList>
           </Tabs>
         </div>
 
+        {/* Big Blue Banner */}
         <div className="flex flex-col justify-between gap-4 rounded-xl bg-[#002766] p-6 text-white shadow-md md:flex-row md:items-center">
-  <div className="flex flex-col gap-2">
-    <h2 className="text-18 font-bold text-white">
-      {selectedAccountId ? (currentAccount?.data?.name || currentAccount?.name || 'Account') : 'All Accounts'}
-    </h2>
-    <p className="text-14 text-blue-100/80">
-      {selectedAccountId ? (currentAccount?.data?.officialName || currentAccount?.officialName || `${accounts.length} bank accounts`) : `${accounts.length} bank accounts`}
-    </p>
-    <p className="text-14 font-semibold tracking-[1.1px] text-white">
-      {selectedAccountId ? `●●●● ●●●● ●●●● ${currentAccount?.data?.mask || currentAccount?.mask || ''}` : ''}
-    </p>
-  </div>
-  
-  <div className="flex flex-col items-center justify-center gap-1 rounded-lg bg-white/10 px-5 py-3 backdrop-blur-sm border border-white/10 text-white">
-    <p className="text-14 text-blue-100/90">Current balance</p>
-    <p className="text-24 text-center font-bold text-white">
-      {selectedAccountId 
-        ? formatAmount(currentAccount?.data?.currentBalance || currentAccount?.currentBalance || 0)
-        : formatAmount(accounts.reduce((sum, acc) => sum + (acc.currentBalance || 0), 0))
-      }
-    </p>
-  </div>
-</div>
-
-        {/* View Toggle & Filter Controls */}
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-          <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-            {useMockData && (
-              <div className="px-3 py-1 bg-amber-100 border border-amber-300 rounded-full text-amber-800 text-xs font-medium">
-                Using Mock Data (Mar-Aug 2026)
-              </div>
-            )}
-<Button
-  onClick={() => {
-    setShowAnalysis((prev) => {
-      const nextState = !prev
-      const baseUrl = selectedAccountId 
-        ? `/transaction-history?id=${selectedAccountId}` 
-        : '/transaction-history'
-      const queryDelimiter = selectedAccountId ? '&' : '?'
-      
-      router.push(nextState ? `${baseUrl}${queryDelimiter}view=analysis` : baseUrl)
-      return nextState
-    })
-  }}
-  className="flex items-center gap-2 rounded-lg border-2 border-[#1570EF] bg-white px-4 py-2 font-semibold text-[#1570EF] hover:bg-blue-50 transition-all shadow-xs"
->
-  {showAnalysis ? 'Show Transactions' : 'Show Financial Analysis'}
-</Button>
-            
-            {!showAnalysis && (
-              <>
-                <div className="relative w-full sm:w-64">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                  <Input
-                    type="text"
-                    placeholder="Search transactions..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-                
-                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                  <SelectTrigger className="w-full sm:w-48">
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CATEGORIES.map((category) => (
-                      <SelectItem key={category} value={category}>
-                        {category}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </>
-            )}
+          <div className="flex flex-col gap-2">
+            <h2 className="text-18 font-bold text-white">
+              {selectedAccountId ? (currentAccountObj?.name || 'Account') : 'All Accounts'}
+            </h2>
+            <p className="text-14 text-blue-100/80">
+              {selectedAccountId 
+                ? (currentAccountObj?.officialName || 'Bank Account') 
+                : `${effectiveAccounts.length} bank accounts`}
+            </p>
+            <p className="text-14 font-semibold tracking-[1.1px] text-white">
+              {selectedAccountId && currentAccountObj?.mask ? `●●●● ●●●● ●●●● ${currentAccountObj.mask}` : ''}
+            </p>
           </div>
           
-          {!showAnalysis && (
-            <Button
-              onClick={() => exportTransactionsToCSV(filteredTransactions)}
-              variant="outline"
-              className="flex items-center gap-2"
-              disabled={filteredTransactions.length === 0}
-            >
-              <Download className="h-4 w-4" />
-              Export CSV
-            </Button>
-          )}
+          <div className="flex flex-col items-center justify-center gap-1 rounded-lg bg-white/10 px-5 py-3 backdrop-blur-sm border border-white/10 text-white">
+            <p className="text-14 text-blue-100/90">Current balance</p>
+            <p className="text-24 text-center font-bold text-white">
+              {formatAmount(displayCurrentBalance)}
+            </p>
+          </div>
         </div>
 
+        {/* View Toggle */}
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+          <Button
+            onClick={() => {
+              const nextState = !showAnalysis
+              const baseUrl = selectedAccountId 
+                ? `/transaction-history?id=${selectedAccountId}` 
+                : '/transaction-history'
+              const queryDelimiter = selectedAccountId ? '&' : '?'
+              router.push(nextState ? `${baseUrl}${queryDelimiter}view=analysis` : baseUrl)
+            }}
+            className="flex items-center gap-2 rounded-lg border-2 border-[#1570EF] bg-white px-4 py-2 font-semibold text-[#1570EF] hover:bg-blue-50 transition-all shadow-xs"
+          >
+            {showAnalysis ? 'Show Transactions' : 'Show Financial Analysis'}
+          </Button>
+        </div>
+
+        {/* Dynamic Analysis Section */}
         <section className="flex w-full flex-col gap-6">
           {showAnalysis ? (
-              // Pass bankAccounts and transactions from MOCK_DATA
-              <FinancialAnalysis
-                  transactions={MOCK_DATA.transactions}
-                  bankBalances={MOCK_DATA.bankAccounts}
-              />
+            <FinancialAnalysis
+              transactions={activeTransactions}
+              bankBalances={selectedAccountId && currentAccountObj ? [currentAccountObj] : effectiveAccounts}
+            />
           ) : currentTransactions.length > 0 ? (
             <>
               <TransactionsTable transactions={currentTransactions} />
@@ -330,8 +246,7 @@ const handleAllAccounts = () => {
             </>
           ) : (
             <div className="text-center py-12 text-gray-500">
-              <p className="text-16 font-medium">No transactions found matching your filter</p>
-              <p className="text-14 mt-2">Try adjusting your search or category filter</p>
+              <p className="text-16 font-medium">No transactions found</p>
             </div>
           )}
         </section>

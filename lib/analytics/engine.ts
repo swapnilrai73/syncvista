@@ -38,6 +38,48 @@ export interface CASPortfolioAnalysis {
  * - Forecast: Single Exponential Smoothing with α=0.3
  * - Top Expense Categories: Top 5 spending categories
  */
+
+export function isCreditTransaction(t: any): boolean {
+  if (!t) return false;
+
+  const type = String(t.type || t.transactionType || '').toLowerCase();
+  const category = String(t.category || '').toLowerCase();
+  const name = String(t.name || t.description || '').toLowerCase();
+
+  // 1. Explicit Type Flags
+  if (['credit', 'inflow', 'income', 'cr'].includes(type)) return true;
+  if (['debit', 'outflow', 'expense', 'dr'].includes(type)) return false;
+
+  // 2. Category Checks (Includes substring matches)
+  if (
+    category.includes('income') || 
+    category.includes('salary') || 
+    category.includes('deposit') ||
+    category.includes('transfer')
+  ) {
+    return true;
+  }
+
+  // 3. Name & Keyword Matching for Uncategorized HDFC Credits
+  if (
+    name.includes('salary') ||
+    name.includes('upi/cr') ||
+    name.includes('neft cr') ||
+    name.includes('imps cr') ||
+    name.includes('credit') ||
+    name.includes('deposit') ||
+    name.includes('refund')
+  ) {
+    return true;
+  }
+
+  // 4. Negative Polarity Check (if schema stores expenses as + and income as -)
+  if (typeof t.amount === 'number' && t.amount < 0) {
+    return true;
+  }
+
+  return false;
+}
 export function calculateFinancialHealth(transactions: Transaction[]): FinancialHealthResult {
   if (!transactions || transactions.length === 0) {
     return {
@@ -273,11 +315,16 @@ export function analyzeCASPortfolio(casData: any, bankBalances: any[]) {
 }
 
 /**
- * Calculate net worth from bank balances and investments
+ * Calculate net worth from Firestore bank balances and investments
  */
-export function calculateNetWorth(bankBalances: Account[], investmentSummary?: any): number {
-  const bankTotal = bankBalances.reduce((sum, acc) => sum + acc.currentBalance, 0);
-  const investmentTotal = investmentSummary?.totalPortfolioValue || 0;
+export function calculateNetWorth(bankBalances: any[] = [], investmentSummary?: any): number {
+  const bankTotal = bankBalances.reduce((sum, acc) => {
+    // Firestore fields for account balances
+    const bal = acc.currentBalance ?? acc.balance ?? acc.availableBalance ?? 0;
+    return sum + Number(bal);
+  }, 0);
+
+  const investmentTotal = investmentSummary?.totalPortfolioValue || investmentSummary?.currentValue || 0;
   return bankTotal + investmentTotal;
 }
 
@@ -291,43 +338,42 @@ export interface MonthlyCashFlow {
   net: number
 }
 // Fixed calculateMonthlyCashFlow: accurately detects expense vs income transactions
-export function calculateMonthlyCashFlow(transactions: any[]): MonthlyCashFlow[] {
-  const monthlyData: { [key: string]: { inflow: number; outflow: number } } = {}
+export function calculateMonthlyCashFlow(transactions: any[] = []): MonthlyCashFlow[] {
+  const monthlyData: { [key: string]: { inflow: number; outflow: number } } = {};
 
   transactions.forEach((t) => {
-    const rawDate = t.date || t.$createdAt
-    if (!rawDate) return
+    // Handle Firestore Timestamp objects (t.date.toDate()) or ISO strings
+    let rawDate = t.date || t.createdAt;
+    if (rawDate && typeof rawDate.toDate === 'function') {
+      rawDate = rawDate.toDate();
+    }
+    if (!rawDate) return;
 
-    const d = new Date(rawDate)
-    if (isNaN(d.getTime())) return
+    const d = new Date(rawDate);
+    if (isNaN(d.getTime())) return;
 
-    const monthKey = d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) // e.g., "Mar 2026"
+    const monthKey = d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
 
     if (!monthlyData[monthKey]) {
-      monthlyData[monthKey] = { inflow: 0, outflow: 0 }
+      monthlyData[monthKey] = { inflow: 0, outflow: 0 };
     }
 
-    const amt = Math.abs(t.amount || 0)
-    const isExpense =
-        t.type?.toLowerCase() === 'debit' ||
-        t.amount < 0 ||
-        (t.category && t.category.toLowerCase() !== 'income')
-
-    if (isExpense) {
-      monthlyData[monthKey].outflow += amt
+    const amt = Math.abs(t.amount || 0);
+    if (isCreditTransaction(t)) {
+      monthlyData[monthKey].inflow += amt;
     } else {
-      monthlyData[monthKey].inflow += amt
+      monthlyData[monthKey].outflow += amt;
     }
-  })
+  });
 
   return Object.keys(monthlyData).map((month) => {
-    const inflow = monthlyData[month].inflow
-    const outflow = monthlyData[month].outflow
+    const inflow = monthlyData[month].inflow;
+    const outflow = monthlyData[month].outflow;
     return {
       month,
       inflow,
       outflow,
       net: inflow - outflow,
-    }
-  })
+    };
+  });
 }
