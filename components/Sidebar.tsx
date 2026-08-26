@@ -41,7 +41,7 @@ const Sidebar = ({ user }: SiderbarProps) => {
           className="mb-12 cursor-pointer flex items-center gap-3"
         >
           <Image 
-            src="/icons/logo.svg"
+            src="/icons/logo.webp"
             width={48}
             height={48}
             alt="SyncVista logo"

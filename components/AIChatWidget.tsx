@@ -169,12 +169,14 @@ export default function AIChatWidget() {
           <div className="px-3 py-2 bg-gray-50 border-t border-gray-100 flex gap-1.5 overflow-x-auto no-scrollbar">
             {SUGGESTED_QUERIES.map((chip, i) => (
               <button
-                key={i}
-                onClick={() => handleSend(chip)}
-                className="whitespace-nowrap text-[11px] bg-white border border-gray-200 px-2.5 py-1 rounded-full text-gray-600 hover:bg-blue-50 hover:border-blue-300 transition"
-              >
-                {chip}
-              </button>
+              key={i}
+              type="button"
+              onClick={() => handleSend(chip)}
+              aria-label={`Send suggested query: ${chip}`}
+              className="whitespace-nowrap text-[11px] bg-white border border-gray-200 px-2.5 py-1 rounded-full text-gray-600 hover:bg-blue-50 hover:border-blue-300 transition"
+            >
+              {chip}
+            </button>
             ))}
           </div>
 
