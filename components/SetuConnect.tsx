@@ -26,7 +26,7 @@ const SetuConnect = ({ user, variant }: SetuConnectProps) => {
 
   const content = (
     <>
-      <Image src="/icons/connect-bank.svg" alt="connect bank" width={24} height={24} />
+      <Image src="/icons/connect-bank.svg" aria-hidden="true" alt="connect bank" width={24} height={24} />
       <p className={variant === "primary" ? "hidden" : "text-[16px] font-semibold text-black-2"}>
         Connect bank
       </p>

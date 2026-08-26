@@ -56,7 +56,7 @@ const TransactionsTable = ({ transactions }: TransactionTableProps) => {
 
               <TableCell className={`pl-2 pr-10 font-semibold ${
                 isDebit || amount[0] === '-' ?
-                  'text-[#f04438]'
+                  'text-[#d92d20]'
                   : 'text-[#039855]'
               }`}>
                 {isDebit ? `-${amount}` : isCredit ? amount : amount}

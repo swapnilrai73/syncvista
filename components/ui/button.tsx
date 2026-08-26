@@ -33,21 +33,46 @@ const buttonVariants = cva(
   }
 )
 
+// Fixed: Added typeof buttonVariants
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
   asChild?: boolean
 }
 
+// Helper to extract text from JSX children recursively
+function extractTextContent(node: React.ReactNode): string {
+  if (typeof node === "string" || typeof node === "number") {
+    return String(node)
+  }
+  if (Array.isArray(node)) {
+    return node.map(extractTextContent).join(" ").trim()
+  }
+  if (React.isValidElement(node) && (node.props as { children?: React.ReactNode }).children) {
+    return extractTextContent((node.props as { children?: React.ReactNode }).children)
+  }
+  return ""
+}
+
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
+  ({ className, variant, size, asChild = false, children, ...props }, ref) => {
     const Comp = asChild ? Slot : "button"
+
+    const extractedText = extractTextContent(children)
+    const computedLabel =
+      props["aria-label"] ||
+      props["aria-labelledby"] ||
+      (extractedText !== "" ? extractedText : "Interactive action")
+
     return (
       <Comp
         className={cn(buttonVariants({ variant, size, className }))}
         ref={ref}
+        aria-label={computedLabel}
         {...props}
-      />
+      >
+        {children}
+      </Comp>
     )
   }
 )

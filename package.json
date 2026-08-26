@@ -56,5 +56,11 @@
     "ts-node": "^10.9.2",
     "tsx": "^4.19.0",
     "typescript": "^5"
-  }
+  },
+  "browserslist": [
+    "chrome >= 109",
+    "edge >= 109",
+    "firefox >= 109",
+    "safari >= 16"
+  ]
 }

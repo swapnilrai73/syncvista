@@ -41,6 +41,7 @@ const BankInfo = ({ account, bankDocumentId, type }: BankInfoProps) => {
       >
         <Image
           src="/icons/connect-bank.svg"
+          aria-hidden="true"
           width={20}
           height={20}
           alt={account.subtype}

@@ -167,18 +167,23 @@ export default function AIChatWidget() {
 
           {/* Suggested Query Chips */}
           <div className="px-3 py-2 bg-gray-50 border-t border-gray-100 flex gap-1.5 overflow-x-auto no-scrollbar">
-            {SUGGESTED_QUERIES.map((chip, i) => (
-              <button
-              key={i}
-              type="button"
-              onClick={() => handleSend(chip)}
-              aria-label={`Send suggested query: ${chip}`}
-              className="whitespace-nowrap text-[11px] bg-white border border-gray-200 px-2.5 py-1 rounded-full text-gray-600 hover:bg-blue-50 hover:border-blue-300 transition"
-            >
-              {chip}
-            </button>
-            ))}
-          </div>
+  {SUGGESTED_QUERIES.map((chip, i) => {
+    // Ensure chip is stringified safely so accessibility tree nodes never evaluate to empty/null
+    const queryText = typeof chip === "string" ? chip : String(chip || "");
+
+    return (
+      <button
+        key={i}
+        type="button"
+        onClick={() => handleSend(queryText)}
+        aria-label={queryText}
+        className="whitespace-nowrap text-[11px] bg-white border border-gray-200 px-2.5 py-1 rounded-full text-gray-600 hover:bg-blue-50 hover:border-blue-300 transition"
+      >
+        <span className="pointer-events-none">{queryText}</span>
+      </button>
+    );
+  })}
+</div>
 
           {/* Input Bar */}
           <div className="p-3 border-t border-gray-100 bg-white flex items-center gap-2">

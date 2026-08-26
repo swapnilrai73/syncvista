@@ -1,16 +1,24 @@
-export const dynamic = 'force-dynamic'
+
 
 import type { Metadata } from "next";
 import { Inter, IBM_Plex_Serif } from "next/font/google";
-import AIChatWidget from "@/components/AIChatWidget";
 import "@/app/globals.css";
 import { Toaster } from "sonner";
+import nextDynamic from "next/dynamic";
 
-const inter = Inter({ subsets: ["latin"], variable: '--font-inter' });
+
+// Lazy load client widget so it doesn't block critical main-thread LCP
+const AIChatWidget = nextDynamic(() => import("@/components/AIChatWidget"), {
+  ssr: false,
+});
+
+const inter = Inter({ subsets: ["latin"], variable: '--font-inter', display: 'optional', preload: true });
 const ibmPlexSerif = IBM_Plex_Serif({
   subsets: ['latin'],
   weight: ['400', '700'],
-  variable: '--font-ibm-plex-serif'
+  variable: '--font-ibm-plex-serif',
+  display: 'optional',
+  preload: true,
 })
 
 export const metadata: Metadata = {
