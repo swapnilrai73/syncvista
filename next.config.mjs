@@ -12,7 +12,21 @@ const nextConfig = {
     optimizePackageImports: ['lucide-react', 'radix-ui', 'recharts', 'sonner'],
   },
 };
-
+// next.config.js
+module.exports = {
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
+          { key: 'Content-Security-Policy', value: "default-src 'self'; img-src 'self' data: https:;" },
+        ],
+      },
+    ];
+  },
+};
 export default withSentryConfig(
   nextConfig,
   {
