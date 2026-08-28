@@ -12,6 +12,7 @@ const cohere = new CohereClient({
 });
 
 export async function POST(req: NextRequest) {
+  console.time("⏱️ TOTAL CHAT ROUTE");
   try {
     const body = await req.json();
     const { messages, userId } = body;
@@ -24,9 +25,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid messages payload" }, { status: 400 });
     }
 
+    const targetNamespace = String(userId).trim();
     const latestMessage = messages[messages.length - 1]?.content || "";
 
-    // 1. Vector Search with Pinecone
+    // 1. Vector Search Benchmark
+    console.time("⏱️ 1. Embedding + Vector Search");
     let contextText = "";
     try {
       if (process.env.PINECONE_API_KEY && process.env.COHERE_API_KEY) {
@@ -38,7 +41,9 @@ export async function POST(req: NextRequest) {
         const queryVector = await embeddings.embedQuery(latestMessage);
         const index = pineconeClient.Index(process.env.PINECONE_INDEX_NAME || "");
 
-        const queryResponse = await index.namespace(String(userId)).query({
+        console.log("🔍 QUERYING NAMESPACE:", `"${targetNamespace}"`);
+
+        const queryResponse = await index.namespace(targetNamespace).query({
           vector: queryVector,
           topK: 10,
           includeMetadata: true,
@@ -47,43 +52,60 @@ export async function POST(req: NextRequest) {
         contextText = queryResponse.matches
           ?.map((m: any) => m.metadata?.text || "")
           .filter(Boolean)
-          .join("\n") || "";
+          .join("\n\n") || "";
       }
     } catch (vectorErr) {
-      console.error("Vector retrieval failed, proceeding without context:", vectorErr);
+      console.error("Vector retrieval failed:", vectorErr);
     }
+    console.timeEnd("⏱️ 1. Embedding + Vector Search");
 
-    // 2. Format Chat History for Cohere SDK
+    // 2. Format Chat History
     const chatHistory = messages.slice(0, -1).map((m: any) => ({
-      role: m.role === "user" ? ("USER" as const) : ("CHATBOT" as const),
+      role: m.sender === "user" ? ("USER" as const) : ("CHATBOT" as const),
       message: m.content || "",
     }));
 
-    const preamble = `You are SyncVista AI, a helpful personal financial assistant.
+    const preamble = `You are SyncVista AI, a personal financial advisor.
 
-FINANCIAL CONTEXT:
-${contextText || "No context retrieved."}
+You have access to the user's indexed financial data provided below:
+
+=== FINANCIAL RECORDS ===
+${contextText || "No financial records found in vector database."}
+========================
 
 INSTRUCTIONS:
-- Answer the user directly, accurately, and concisely based on the financial context provided.
-- Be clear and structured for financial data and monthly cash flow queries.
-- Format money cleanly in Indian Rupees (₹).
-- Do not use robotic opener lines or preambles.`;
+1. Analyze the FINANCIAL RECORDS above to answer the query directly.
+2. Do not ask the user for income or expense data if it can be derived or summarized from the records.
+3. If no relevant financial records are found in the context above, state: "I couldn't find relevant financial records in your synced context."
+4. Format currency in Indian Rupees (₹).`;
 
-    // 3. Initiate Native Cohere Stream
+    console.log("🔍 RETRIEVED CONTEXT LENGTH:", contextText.length);
+    if (contextText.length > 0) {
+      console.log("🔍 CONTEXT PREVIEW:", contextText.slice(0, 200));
+    }
+
+    // 3. Stream Initiation Benchmark
+    console.time("⏱️ 2. Cohere Stream Initiation");
     const responseStream = await cohere.chatStream({
-      model: "command-r-plus-08-2024",
+      model: "command-r-08-2024",
       message: latestMessage,
       preamble: preamble,
       chatHistory: chatHistory,
       temperature: 0.2,
     });
+    console.timeEnd("⏱️ 2. Cohere Stream Initiation");
 
     const encoder = new TextEncoder();
+    let firstChunkReceived = false;
+
     const customStream = new ReadableStream({
       async start(controller) {
         try {
           for await (const event of responseStream) {
+            if (!firstChunkReceived) {
+              console.timeEnd("⏱️ TOTAL CHAT ROUTE");
+              firstChunkReceived = true;
+            }
             if (event.eventType === "text-generation") {
               controller.enqueue(encoder.encode(event.text));
             }

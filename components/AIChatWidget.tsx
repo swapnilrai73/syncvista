@@ -24,7 +24,8 @@ const SUGGESTED_QUERIES = [
 
 const AUTH_ROUTES = ["/sign-in", "/sign-up", "/login", "/register", "/auth"];
 
-export default function AIChatWidget({ userId }: AIChatWidgetProps) {
+export default function AIChatWidget({ userId: initialUserId }: AIChatWidgetProps) {
+  const [userId, setUserId] = useState(initialUserId);
   const pathname = usePathname();
   const router = useRouter();
 
@@ -107,6 +108,9 @@ export default function AIChatWidget({ userId }: AIChatWidgetProps) {
     setSyncing(false);
 
     if (res.success) {
+      if (res.userId) {
+        setUserId(res.userId);
+      }
       setMessages((prev) => [
         ...prev,
         {
@@ -140,7 +144,7 @@ export default function AIChatWidget({ userId }: AIChatWidgetProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId,
+          userId: userId || initialUserId,
           pathname,
           messages: updatedMessages.map((m) => ({
             role: m.sender,
@@ -210,7 +214,7 @@ export default function AIChatWidget({ userId }: AIChatWidgetProps) {
           style={{ width: `${dimensions.width}px`, height: `${dimensions.height}px` }}
           className="relative bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden transition-shadow"
         >
-          {/* Top-Left Corner Resize Hitbox (Invisible, Clean Cursor) */}
+          {/* Top-Left Corner Resize Hitbox */}
           <div
             onMouseDown={startResizing}
             className="absolute top-0 left-0 w-6 h-6 cursor-nwse-resize z-50 group flex items-center justify-center"

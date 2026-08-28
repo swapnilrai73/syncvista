@@ -8,8 +8,15 @@ export async function triggerVectorSync() {
     const user = await getLoggedInUser();
     if (!user) throw new Error("Unauthorized");
 
-    const result = await syncUserDataToVectorStore(user.$id);
-    return { success: true, count: result.count };
+    // Extract the exact ID used for indexing
+    const targetUserId = user.$id;
+    const result = await syncUserDataToVectorStore(targetUserId);
+
+    return { 
+      success: true, 
+      count: result.count,
+      userId: targetUserId // Return the exact namespace ID back to the client
+    };
   } catch (error: any) {
     return { success: false, error: error.message };
   }
