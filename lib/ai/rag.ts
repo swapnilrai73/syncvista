@@ -1,81 +1,111 @@
-import { CohereEmbeddings } from "@langchain/cohere";
-import { PineconeStore } from "@langchain/pinecone";
+import { db } from "@/lib/firebase";
+import { collection, getDocs, query, where } from "firebase/firestore";
 import { Pinecone } from "@pinecone-database/pinecone";
-import { Document } from "@langchain/core/documents";
-import { getAccounts, getAllTransactions } from "@/lib/actions/bank.actions";
-import { getInvestmentSummary } from "@/lib/actions/investment.actions";
+import { CohereEmbeddings } from "@langchain/cohere";
 
-const pinecone = new Pinecone({
+const pineconeClient = new Pinecone({
   apiKey: process.env.PINECONE_API_KEY!,
 });
 
-export const getVectorStore = async () => {
-  const index = pinecone.Index(process.env.PINECONE_INDEX_NAME!);
-  
-  const embeddings = new CohereEmbeddings({
-    apiKey: process.env.COHERE_API_KEY,
-    model: "embed-english-v3.0",
-  });
-
-  return new PineconeStore(embeddings, {
-    pineconeIndex: index,
-  });
-};
-
-export const syncUserDataToVectorStore = async (userId: string) => {
+export async function syncUserDataToVectorStore(userId: string) {
   try {
-    const vectorStore = await getVectorStore();
+    console.time("⏱️ TOTAL SYNC TIME");
 
-   // Fetch user records
-   const accountsResponse = await getAccounts({ userId });
-   const accounts = accountsResponse?.data || [];
-   
-   const transactionsResponse = await getAllTransactions({ userId });
-   const transactions = Array.isArray(transactionsResponse) ? transactionsResponse : [];
-   
-   const investments = await getInvestmentSummary({ userId });
+    // 1. Fetch user's banks and transactions
+    console.time("⏱️ 1. Firestore DB Fetch");
+    const banksQuery = query(collection(db, "banks"), where("userId", "==", userId));
+    const banksSnap = await getDocs(banksQuery);
+    const banks = banksSnap.docs.map((doc) => ({ id: doc.id, ...(doc.data() as any) }));
 
-   const documents: Document[] = [];
+    const userBankIds = Array.from(
+      new Set(
+        banks.flatMap((b) => [b.id, b.$id, b.shareableId]).filter(Boolean)
+      )
+    );
 
-    // 1. Account Docs
-    if (accounts?.data) {
-      accounts.data.forEach((acc: any) => {
-        documents.push(
-          new Document({
-            pageContent: `Bank Account: ${acc.name} (${acc.officialName || "Bank"}). Balance: ₹${acc.currentBalance}. Mask: ${acc.mask}. Type: ${acc.type}.`,
-            metadata: { userId, type: "account", id: acc.appwriteItemId || acc.$id || "" },
-          })
-        );
-      });
-    }
+    const transactionsMap = new Map<string, any>();
+    const addDocsToMap = (snap: any) => {
+      snap.docs.forEach((doc: any) => transactionsMap.set(doc.id, doc.data()));
+    };
 
-    // 2. Transaction Docs
-    transactions.forEach((tx: any) => {
-      documents.push(
-        new Document({
-          pageContent: `Transaction: ${tx.name}. Amount: ₹${tx.amount}. Category: ${tx.category || "General"}. Date: ${tx.date}. Status: ${tx.status || "Completed"}. Channel: ${tx.channel || "Online"}.`,
-          metadata: { userId, type: "transaction", id: tx.$id || "" },
-        })
+    const txQueries = [];
+    if (userBankIds.length > 0) {
+      txQueries.push(
+        getDocs(query(collection(db, "transactions"), where("senderBankId", "in", userBankIds))),
+        getDocs(query(collection(db, "transactions"), where("receiverBankId", "in", userBankIds)))
       );
+    }
+    txQueries.push(getDocs(query(collection(db, "transactions"), where("userId", "==", userId))));
+
+    const txSnapshots = await Promise.allSettled(txQueries);
+    txSnapshots.forEach((res) => {
+      if (res.status === "fulfilled") addDocsToMap(res.value);
     });
 
-    // 3. Investment Docs
-    if (investments) {
-      documents.push(
-        new Document({
-          pageContent: `Investment Portfolio Summary: Current Value: ₹${investments.currentValue || 0}. Total Investments: ₹${investments.totalInvested || 0}. Total Gain: ₹${investments.totalGain || 0}. Holdings: ${JSON.stringify(investments.portfolioData || [])}`,
-          metadata: { userId, type: "investment" },
-        })
-      );
+    const transactions = Array.from(transactionsMap.values());
+    console.timeEnd("⏱️ 1. Firestore DB Fetch");
+
+    // 2. Aggregate metrics
+    const totalBalance = banks.reduce((acc, b) => acc + (Number(b.currentBalance) || 0), 0);
+    const totalIncome = transactions
+      .filter((t) => t.type === "credit" || Number(t.amount) > 0)
+      .reduce((acc, t) => acc + Math.abs(Number(t.amount) || 0), 0);
+    const totalExpenses = transactions
+      .filter((t) => t.type === "debit" || Number(t.amount) < 0)
+      .reduce((acc, t) => acc + Math.abs(Number(t.amount) || 0), 0);
+
+    // 3. Build text payloads
+    const rawDocs = [
+      `SUMMARY: Net Worth: ₹${totalBalance} | Total Income: ₹${totalIncome} | Total Expenses: ₹${totalExpenses}`,
+      ...banks.map(
+        (b) => `BANK: Name: "${b.name}", Institution: "${b.bankName || b.officialName}", Balance: ₹${b.currentBalance}, Type: "${b.subtype || b.type}"`
+      ),
+      ...transactions.map(
+        (t) => `TRANSACTION: Name: "${t.name}", Amount: ₹${t.amount}, Category: "${t.category}", Date: "${t.date}", Channel: "${t.channel || t.paymentChannel}", Status: "${t.status}"`
+      ),
+    ];
+
+    if (rawDocs.length === 0) return { count: 0 };
+
+    // 4. Generate Embeddings in Parallel Batches & Upsert
+    console.time("⏱️ 2. Batch Vector Upsert");
+    const embeddings = new CohereEmbeddings({
+      apiKey: process.env.COHERE_API_KEY,
+      model: "embed-english-v3.0",
+    });
+
+    // Chunk array into batches of 50 for faster parallel processing
+    const BATCH_SIZE = 50;
+    const chunkedDocs: string[][] = [];
+    for (let i = 0; i < rawDocs.length; i += BATCH_SIZE) {
+      chunkedDocs.push(rawDocs.slice(i, i + BATCH_SIZE));
     }
 
-    if (documents.length > 0) {
-      await vectorStore.addDocuments(documents, { namespace: userId });
-    }
+    const embeddingResults = await Promise.all(
+      chunkedDocs.map((chunk) => embeddings.embedDocuments(chunk))
+    );
+    const vectorValues = embeddingResults.flat();
 
-    return { success: true, count: documents.length };
+    const index = pineconeClient.Index(process.env.PINECONE_INDEX_NAME!);
+
+    const records = rawDocs.map((text, i) => ({
+      id: `${userId}-${i}`,
+      values: vectorValues[i],
+      metadata: { text, userId },
+    }));
+
+    // Upsert to Pinecone in 100-item batches
+    for (let i = 0; i < records.length; i += 100) {
+      const batch = records.slice(i, i + 100);
+      await index.namespace(userId).upsert(batch);
+    }
+    console.timeEnd("⏱️ 2. Batch Vector Upsert");
+
+    console.timeEnd("⏱️ TOTAL SYNC TIME");
+
+    return { count: rawDocs.length };
   } catch (error: any) {
-    console.error("Error syncing vector data:", error);
-    throw new Error(error.message || "Failed to sync vector store");
+    console.error("Vector sync failed:", error);
+    throw error;
   }
-};
+}
