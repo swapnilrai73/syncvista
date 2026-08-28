@@ -11,9 +11,6 @@ const nextConfig = {
   experimental: {
     optimizePackageImports: ['lucide-react', 'radix-ui', 'recharts', 'sonner'],
   },
-};
-// next.config.js
-module.exports = {
   async headers() {
     return [
       {
@@ -21,24 +18,32 @@ module.exports = {
         headers: [
           { key: 'X-Frame-Options', value: 'DENY' },
           { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
-          { key: 'Content-Security-Policy', value: "default-src 'self'; img-src 'self' data: https:;" },
+          {
+            key: 'Content-Security-Policy',
+            value: [
+              "default-src 'self'",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+              "style-src 'self' 'unsafe-inline'",
+              "img-src 'self' data: blob: https:",
+              "font-src 'self' data:",
+              "connect-src 'self' https://*.firebaseio.com https://*.firebaseapp.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com https://*.appwrite.global https://*.sentry.io wss://*",
+              "frame-ancestors 'none'",
+            ].join('; '),
+          },
         ],
       },
     ];
   },
 };
+
 export default withSentryConfig(
   nextConfig,
   {
-    // For all available options, see:
-    // https://github.com/getsentry/sentry-webpack-plugin#options
     silent: true,
     org: 'jsm-x9',
     project: 'javascript-nextjs',
   },
   {
-    // For all available options, see:
-    // https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/
     widenClientFileUpload: true,
     transpileClientSDK: true,
     hideSourceMaps: true,

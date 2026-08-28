@@ -16,6 +16,7 @@ const MyBanks = async () => {
   const totalBalance = accountsData?.totalCurrentBalance ?? MOCK_DATA.summary.totalBalance;
   const selectedAccount = accounts[0] || null;
 
+  
   return (
     <section className='flex'>
       <div className="my-banks w-full max-w-7xl mx-auto">
@@ -66,16 +67,15 @@ const MyBanks = async () => {
           <h2 className="header-2">Your cards</h2>
           <div className="flex flex-wrap gap-6">
             {accounts.map((a: Account) => (
-              <Link 
-                key={a.bankDocumentId || a.id}
-                href={`/transaction-history?id=${a.bankDocumentId || a.id}`}
-                className="cursor-pointer transition-all hover:scale-[1.02]"
-              >
-                <BankCard 
-                  account={a}
-                  userName={loggedIn?.firstName || ''}
-                />
-              </Link>
+              <div 
+              key={a.bankDocumentId || a.id} 
+              className="cursor-pointer transition-all hover:scale-[1.02]"
+            >
+              <BankCard 
+                account={a}
+                userName={loggedIn?.firstName || ''}
+              />
+            </div>
             ))}
             
             <Link

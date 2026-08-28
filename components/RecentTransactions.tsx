@@ -57,7 +57,10 @@ const RecentTransactions = ({
         {accounts.map((account: Account) => {
           // Filter transactions for this specific account
           const accountTransactions = transactions.filter(
-            (t) => !account.bankDocumentId || t.bankDocumentId === account.bankDocumentId
+            (t) => 
+              t.bankDocumentId === account.bankDocumentId || 
+              t.senderBankId === account.bankDocumentId || 
+              t.receiverBankId === account.bankDocumentId
           );
           
           const totalPages = Math.ceil(accountTransactions.length / rowsPerPage);

@@ -77,12 +77,11 @@ export const getAccounts = async ({ userId }: getAccountsProps) => {
       })
     );
 
-    // Validate accounts: if any account has zero balance or missing officialName, return mock data
     const hasInvalidAccounts = accounts.some(
       (account: any) => 
-        account.currentBalance === 0 || 
-        !account.officialName || 
-        account.officialName === "Bank account"
+        account.currentBalance === undefined || 
+        account.currentBalance === null ||
+        !account.name
     );
 
     if (hasInvalidAccounts) {

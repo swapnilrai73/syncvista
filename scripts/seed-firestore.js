@@ -1,13 +1,25 @@
 /**
  * Firestore Seed Script
- * Populates Firestore with mock bank accounts and transactions for testuser2
+ * Populates Firestore with mock bank accounts and transactions
  */
 
-require('dotenv').config({ path: '.env.local' });
-const { initializeApp, getApps, getApp } = require("firebase/app");
-const { getFirestore, collection, addDoc, query, where, getDocs, deleteDoc, doc } = require("firebase/firestore");
+import dotenv from 'dotenv';
+dotenv.config({ path: '.env.local' });
 
-const MOCK_USER_ID = "testuser2";
+import { initializeApp, getApps, getApp } from "firebase/app";
+import { 
+  getFirestore, 
+  collection, 
+  query, 
+  where, 
+  getDocs, 
+  deleteDoc, 
+  doc, 
+  setDoc,
+  addDoc 
+} from "firebase/firestore";
+
+const MOCK_USER_ID = "MA2r2DAElhc1jAA740feFKt1TUP2";
 
 const MOCK_BANK_ACCOUNTS = [
   {
@@ -43,6 +55,23 @@ const MOCK_BANK_ACCOUNTS = [
     subtype: "checking",
     institutionId: "icici",
     consentId: "consent_icici_001",
+  },
+  {
+    id: "cc_axis_neo",
+    bankDocumentId: "cc_axis_neo",
+    userId: MOCK_USER_ID,
+    accountId: "AXISCC99887766",
+    shareableId: "axis-cc-321",
+    bankName: "Axis Bank",
+    name: "Axis Bank Neo Credit Card",
+    officialName: "Axis Bank Rewards Credit Card",
+    currentBalance: -24500,
+    availableBalance: 175500,
+    mask: "9988",
+    type: "credit",
+    subtype: "credit_card",
+    institutionId: "axis",
+    consentId: "consent_axis_001",
   },
 ];
 
@@ -87,12 +116,12 @@ const createTransaction = (id, name, amount, type, category, date, bankId, payme
 const generateHistoricalTransactions = () => {
   const transactions = [];
   const months = [
-    { year: 2026, month: 3, name: "March", salary: 210000 },
-    { year: 2026, month: 4, name: "April", salary: 210000 },
-    { year: 2026, month: 5, name: "May", salary: 225000 },
-    { year: 2026, month: 6, name: "June", salary: 225000 },
-    { year: 2026, month: 7, name: "July", salary: 240000 },
-    { year: 2026, month: 8, name: "August", salary: 240000 },
+    { year: 2026, month: 3, salary: 210000 },
+    { year: 2026, month: 4, salary: 210000 },
+    { year: 2026, month: 5, salary: 225000 },
+    { year: 2026, month: 6, salary: 225000 },
+    { year: 2026, month: 7, salary: 240000 },
+    { year: 2026, month: 8, salary: 240000 },
   ];
 
   let transactionCounter = 1;
@@ -102,7 +131,6 @@ const generateHistoricalTransactions = () => {
     const salaryDate = `${monthStr}-01`;
     const salaryBankId = "bank_icici_salary";
 
-    // Monthly Salary Credit (Inflow)
     transactions.push(
       createTransaction(
         `txn_${transactionCounter++}`,
@@ -116,7 +144,6 @@ const generateHistoricalTransactions = () => {
       )
     );
 
-    // Fixed Essential Expenses
     const essentialExpenses = [
       { name: "Rent Payment", amount: 25000, category: "Rent", day: 5, bankId: "bank_hdfc_savings" },
       { name: "Groceries - BigBasket", amount: 8500, category: "Groceries", day: 10, bankId: "bank_hdfc_savings" },
@@ -140,7 +167,6 @@ const generateHistoricalTransactions = () => {
       );
     });
 
-    // 14 Recurring Subscriptions charged monthly
     SUBSCRIPTIONS.forEach((sub, idx) => {
       const day = Math.min(28, (idx * 2) + 1);
       transactions.push(
@@ -157,13 +183,12 @@ const generateHistoricalTransactions = () => {
       );
     });
 
-    // Discretionary Expenses
     const discretionaryExpenses = [
       { name: "Swiggy Food Delivery", amount: 2400, category: "Dining", day: 12, bankId: "bank_icici_salary" },
       { name: "Zomato Food Order", amount: 1800, category: "Dining", day: 18, bankId: "bank_icici_salary" },
       { name: "Amazon Shopping", amount: 5500, category: "Shopping", day: 14, bankId: "bank_hdfc_savings" },
       { name: "Flipkart Order", amount: 3200, category: "Shopping", day: 22, bankId: "bank_hdfc_savings" },
-      { name: "Movie Tickets", amount: 1200, category: "Entertainment", day: 28, bankId: "bank_icici_salary" },
+      { name: "Movie Tickets", amount: 1200, category: "Entertainment", day: 28, bankId: "cc_axis_neo" },
     ];
 
     discretionaryExpenses.forEach((expense) => {
@@ -201,16 +226,14 @@ const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 async function clearExistingData() {
-  console.log("Clearing existing data for testuser2...");
+  console.log("Clearing existing data...");
   
-  // Clear existing banks
   const banksQuery = query(collection(db, "banks"), where("userId", "==", MOCK_USER_ID));
   const banksSnapshot = await getDocs(banksQuery);
   for (const bankDoc of banksSnapshot.docs) {
     await deleteDoc(doc(db, "banks", bankDoc.id));
   }
   
-  // Clear existing transactions for this user
   const bankIds = MOCK_BANK_ACCOUNTS.map(b => b.bankDocumentId);
   if (bankIds.length > 0) {
     const transactionsQuery = query(collection(db, "transactions"), where("senderBankId", "in", bankIds));
@@ -227,7 +250,10 @@ async function seedBankAccounts() {
   console.log("Seeding bank accounts...");
   
   for (const bankAccount of MOCK_BANK_ACCOUNTS) {
-    await addDoc(collection(db, "banks"), {
+    // Pass the document ID as the 3rd argument in doc()
+    await setDoc(doc(db, "banks", bankAccount.bankDocumentId), {
+      id: bankAccount.bankDocumentId,
+      $id: bankAccount.bankDocumentId,
       userId: bankAccount.userId,
       accountId: bankAccount.accountId,
       shareableId: bankAccount.shareableId,
@@ -276,9 +302,7 @@ async function seedTransactions() {
 
 async function main() {
   try {
-    console.log("Starting Firestore seed for testuser2...");
-    console.log("Project ID:", process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID);
-    console.log("Firebase Config:", JSON.stringify(firebaseConfig, null, 2));
+    console.log("Starting Firestore seed...");
     await clearExistingData();
     await seedBankAccounts();
     await seedTransactions();
