@@ -1,7 +1,8 @@
 "use client"
 
+import { useState } from 'react'
 import { Metric, Text, AreaChart, BarChart, DonutChart } from '@tremor/react'
-import { Wallet, Zap, Target, CreditCard } from 'lucide-react'
+import { Wallet, Zap, Target, CreditCard, X } from 'lucide-react'
 import {
   calculateFinancialHealth,
   detectSubscriptions,
@@ -22,14 +23,54 @@ interface FinancialAnalysisProps {
 }
 
 const FinancialAnalysis = ({ transactions = [], bankBalances = [], investmentSummary }: FinancialAnalysisProps) => {
-  const expenseOnlyTransactions = transactions.filter((t: any) => {
+  const [timeframe, setTimeframe] = useState<'1M' | '3M' | '6M' | '1Y' | 'ALL'>('6M')
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+
+  const filterTransactionsByTimeframe = (txns: any[]) => {
+    if (timeframe === 'ALL') return txns
+    
+    const now = new Date()
+    const cutoffDate = new Date()
+    
+    switch (timeframe) {
+      case '1M':
+        cutoffDate.setMonth(now.getMonth() - 1)
+        break
+      case '3M':
+        cutoffDate.setMonth(now.getMonth() - 3)
+        break
+      case '6M':
+        cutoffDate.setMonth(now.getMonth() - 6)
+        break
+      case '1Y':
+        cutoffDate.setFullYear(now.getFullYear() - 1)
+        break
+      default:
+        return txns
+    }
+    
+    return txns.filter((t: any) => {
+      const rawDate = t.date || t.$createdAt || t.createdAt
+      if (!rawDate) return false
+      const tDate = new Date(rawDate)
+      return !isNaN(tDate.getTime()) && tDate >= cutoffDate
+    })
+  }
+
+  const filteredTransactions = filterTransactionsByTimeframe(transactions)
+
+  const expenseOnlyTransactions = filteredTransactions.filter((t: any) => {
     const isDebitType = t.type ? t.type.toLowerCase() === 'debit' : true
     const isNotSalaryCategory = (t.category || '').toLowerCase() !== 'salary' && (t.name || '').toLowerCase() !== 'monthly salary credit'
     return isDebitType && isNotSalaryCategory
   })
 
-  const financialHealth = calculateFinancialHealth(transactions)
-  const rawSubscriptions = detectSubscriptions(expenseOnlyTransactions)
+  const categoryFilteredTransactions = selectedCategory 
+    ? expenseOnlyTransactions.filter((t: any) => (t.category || '').toLowerCase() === selectedCategory.toLowerCase())
+    : expenseOnlyTransactions
+
+  const financialHealth = calculateFinancialHealth(filteredTransactions)
+  const rawSubscriptions = detectSubscriptions(categoryFilteredTransactions)
 
   const subscriptions = rawSubscriptions.filter((sub: any) => {
     const name = (sub.merchant || sub.name || '').toLowerCase()
@@ -37,9 +78,9 @@ const FinancialAnalysis = ({ transactions = [], bankBalances = [], investmentSum
     return !name.includes('salary') && !name.includes('credit') && cat !== 'salary'
   })
 
-  const anomalies = detectAnomalies(transactions)
+  const anomalies = detectAnomalies(filteredTransactions)
   const netWorth = calculateNetWorth(bankBalances, investmentSummary)
-  const monthlyCashFlow = calculateMonthlyCashFlow(transactions)
+  const monthlyCashFlow = calculateMonthlyCashFlow(filteredTransactions)
 
   const subscriptionLeakage = subscriptions.reduce((sum: number, sub: any) => {
     const amount = sub.averageAmount || sub.amount || 0
@@ -77,7 +118,7 @@ const FinancialAnalysis = ({ transactions = [], bankBalances = [], investmentSum
     const yr = parseInt(parts[1] || '2026', 10)
     const mIdx = monthMap[mName] ?? -1
 
-    const monthTxns = transactions.filter((t: any) => {
+    const monthTxns = filteredTransactions.filter((t: any) => {
       const rawDate = t.date || t.$createdAt || t.createdAt
       if (!rawDate) return false
       const d = new Date(rawDate)
@@ -128,7 +169,7 @@ const FinancialAnalysis = ({ transactions = [], bankBalances = [], investmentSum
     const targetMonth = cfDate.getMonth()
     const targetYear = cfDate.getFullYear()
 
-    const monthTransactions = transactions.filter((t: any) => {
+    const monthTransactions = filteredTransactions.filter((t: any) => {
       const rawDate = t.date || t.$createdAt
       if (!rawDate) return false
       const tDate = new Date(rawDate)
@@ -192,16 +233,12 @@ const FinancialAnalysis = ({ transactions = [], bankBalances = [], investmentSum
 
   const chartStyles = "h-56 mt-4 [&_.recharts-cartesian-axis-tick-text]:!text-xs [&_.recharts-cartesian-axis-tick-text]:!fill-slate-500 [&_.recharts-cartesian-grid-line]:!stroke-slate-200"
 
-  const latestCf = monthlyCashFlow.length > 0
-      ? monthlyCashFlow[monthlyCashFlow.length - 1]
-      : { inflow: 0, outflow: 0, net: 0, month: '' }
+  const latestGroupedCf = groupedCashFlowData.length > 0
+      ? groupedCashFlowData[groupedCashFlowData.length - 1]
+      : { date: '', 'Inflow': 0, 'Outflow': 0 }
 
-  const grossInflow = latestCf.inflow ??
-      (financialHealth.savingsRate < 100
-          ? latestCf.outflow / (1 - financialHealth.savingsRate / 100)
-          : latestCf.outflow)
-
-  const grossOutflow = latestCf.outflow || 0
+  const grossInflow = latestGroupedCf['Inflow'] || 0
+  const grossOutflow = latestGroupedCf['Outflow'] || 0
   const retainedAmount = Math.max(0, grossInflow - grossOutflow)
 
   const expenseRatio = grossInflow > 0 ? Math.min(100, (grossOutflow / grossInflow) * 100) : 0
@@ -210,10 +247,38 @@ const FinancialAnalysis = ({ transactions = [], bankBalances = [], investmentSum
   return (
       <div className="bg-[#F8FAFC] border border-slate-200 rounded-2xl p-6 shadow-sm mt-4 text-slate-800 font-sans">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-slate-800">Financial Analytics Dashboard</h2>
-          <div className="flex items-center gap-2 text-sm text-slate-500">
-            <Wallet className="h-4 w-4" />
-            <span>{transactions.length} transactions analyzed</span>
+          <div className="flex items-center gap-4">
+            <h2 className="text-2xl font-bold text-slate-800">Financial Analytics Dashboard</h2>
+            <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
+              {(['1M', '3M', '6M', '1Y', 'ALL'] as const).map((tf) => (
+                <button
+                  key={tf}
+                  onClick={() => setTimeframe(tf)}
+                  className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${
+                    timeframe === tf
+                      ? 'bg-white text-slate-800 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  {tf}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            {selectedCategory && (
+              <button
+                onClick={() => setSelectedCategory(null)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 text-rose-600 rounded-lg text-sm font-medium hover:bg-rose-100 transition-colors"
+              >
+                <span>Category: {selectedCategory}</span>
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+            <div className="flex items-center gap-2 text-sm text-slate-500">
+              <Wallet className="h-4 w-4" />
+              <span>{filteredTransactions.length} transactions analyzed</span>
+            </div>
           </div>
         </div>
 
@@ -479,6 +544,11 @@ const FinancialAnalysis = ({ transactions = [], bankBalances = [], investmentSum
                 yAxisWidth={110}
                 minValue={0}
                 showGridLines={true}
+                onValueChange={(v) => {
+                  if (v && typeof v === 'object' && 'name' in v) {
+                    setSelectedCategory(v.name as string)
+                  }
+                }}
             />
           </div>
 
