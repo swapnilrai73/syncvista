@@ -1,15 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { saveInvestmentData } from "@/lib/actions/investment.actions";
+import { getLoggedInUser } from "@/lib/actions/user.actions";
 import { writeFile, unlink } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
 
 export async function POST(req: NextRequest) {
   try {
+    // AUTH CHECK: derive the user from the session, never from the form
+    // field — otherwise any caller can overwrite another user's portfolio.
+    const loggedIn = await getLoggedInUser();
+    if (!loggedIn) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const userId = loggedIn.$id;
+
     const formData = await req.formData();
     const file = formData.get("file") as File;
     const password = formData.get("password") as string;
-    const userId = formData.get("userId") as string;
 
     if (!file) {
       return NextResponse.json(
@@ -34,7 +42,7 @@ export async function POST(req: NextRequest) {
 
     // Save the uploaded file to a temporary location
     const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
+    const buffer = new Uint8Array(bytes);
     const tempFilePath = join(tmpdir(), `cas-${Date.now()}.pdf`);
     await writeFile(tempFilePath, buffer);
 

@@ -3,7 +3,7 @@
 import { parseStringify } from "../utils";
 import { getSetuAccountData } from "./setu.actions";
 import { getTransactionsByBankId } from "./transaction.actions";
-import { getBanks, getBank } from "./user.actions";
+import { getBanks, getBank, getLoggedInUser } from "./user.actions";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "../firebase";
 import { MOCK_BANK_ACCOUNTS, MOCK_TRANSACTIONS } from "../mockData";
@@ -144,8 +144,24 @@ export const getAccounts = async ({ userId }: getAccountsProps) => {
 // Get one bank account
 export const getAccount = async ({ bankDocumentId }: getAccountProps) => {
   try {
+    // STOPGAP AUTH CHECK: never trust bankDocumentId alone — verify it
+    // belongs to the currently logged-in user before returning any data.
+    const loggedIn = await getLoggedInUser();
+    if (!loggedIn) {
+      throw new Error("Unauthorized: no active session");
+    }
+
     // get bank from db
     const bank = await getBank({ documentId: bankDocumentId });
+
+    if (!bank) {
+      throw new Error("Bank account not found");
+    }
+
+    if (bank.userId !== loggedIn.$id) {
+      // Do not reveal whether the ID exists — same error either way.
+      throw new Error("Bank account not found");
+    }
 
     let accountData;
     let transactions = [];

@@ -226,9 +226,6 @@ declare interface DoughnutChartProps {
   accounts: Account[];
 }
 
-declare interface PaymentTransferFormProps {
-  accounts: Account[];
-}
 
 // Actions
 declare interface getAccountsProps {

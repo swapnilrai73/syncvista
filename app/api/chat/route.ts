@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Pinecone } from "@pinecone-database/pinecone";
 import { CohereEmbeddings } from "@langchain/cohere";
 import { CohereClient } from "cohere-ai";
+import { getLoggedInUser } from "@/lib/actions/user.actions";
 
 const pineconeClient = new Pinecone({
   apiKey: process.env.PINECONE_API_KEY || "",
@@ -14,18 +15,22 @@ const cohere = new CohereClient({
 export async function POST(req: NextRequest) {
   console.time("⏱️ TOTAL CHAT ROUTE");
   try {
-    const body = await req.json();
-    const { messages, userId } = body;
-
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized: Missing userId" }, { status: 401 });
+    // AUTH CHECK: derive the user from the session, never from the request
+    // body — otherwise any caller can read another user's namespace just by
+    // supplying a different userId.
+    const loggedIn = await getLoggedInUser();
+    if (!loggedIn) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const body = await req.json();
+    const { messages } = body;
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return NextResponse.json({ error: "Invalid messages payload" }, { status: 400 });
     }
 
-    const targetNamespace = String(userId).trim();
+    const targetNamespace = String(loggedIn.$id).trim();
     const latestMessage = messages[messages.length - 1]?.content || "";
 
     // 1. Vector Search Benchmark
