@@ -77,6 +77,12 @@ async function AsyncDashboardContent({
 
   return (
     <>
+      {accounts?.isFallback && (
+        <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          We couldn't load your live account data right now, so you're seeing demo data instead. Please refresh in a moment.
+        </div>
+      )}
+
       <TotalBalanceBox 
         accounts={accountsData}
         totalBanks={accounts?.totalBanks || accountsData.length}

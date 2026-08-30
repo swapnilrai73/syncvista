@@ -116,8 +116,12 @@ export const getAccounts = async ({ userId }: getAccountsProps) => {
     return parseStringify({ data: accounts, totalBanks, totalCurrentBalance });
   } catch (error) {
     console.error("An error occurred while getting the accounts:", error);
-    // Return mock data on error
-    console.log("Error fetching accounts, returning mock data");
+    // Distinct from the "no banks connected yet" case above — this is a
+    // genuine unexpected failure (Setu/Firestore error), not intentional
+    // demo mode. Flag it so the UI can tell the user their data may be
+    // stale/fake instead of silently showing fabricated numbers as if
+    // they were real.
+    console.log("Error fetching accounts, returning mock data with isFallback flag");
     const mockAccounts = MOCK_BANK_ACCOUNTS.map((bank: any) => ({
       id: bank.accountId,
       availableBalance: (bank as any).availableBalance || (bank as any).currentBalance || 0,
@@ -137,7 +141,7 @@ export const getAccounts = async ({ userId }: getAccountsProps) => {
       return total + account.currentBalance;
     }, 0);
 
-    return parseStringify({ data: mockAccounts, totalBanks, totalCurrentBalance });
+    return parseStringify({ data: mockAccounts, totalBanks, totalCurrentBalance, isFallback: true });
   }
 };
 
