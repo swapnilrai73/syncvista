@@ -9,10 +9,7 @@ const pineconeClient = new Pinecone({
 
 export async function syncUserDataToVectorStore(userId: string) {
   try {
-    console.time("⏱️ TOTAL SYNC TIME");
-
     // 1. Fetch user's banks and transactions
-    console.time("⏱️ 1. Firestore DB Fetch");
     const banksQuery = query(collection(db, "banks"), where("userId", "==", userId));
     const banksSnap = await getDocs(banksQuery);
     const banks = banksSnap.docs.map((doc) => ({ id: doc.id, ...(doc.data() as any) }));
@@ -48,7 +45,6 @@ export async function syncUserDataToVectorStore(userId: string) {
     });
 
     const transactions = Array.from(transactionsMap.values());
-    console.timeEnd("⏱️ 1. Firestore DB Fetch");
 
     // 2. Aggregate metrics using exact ISO Date filtering
     const totalBalance = banks.reduce((acc, b) => acc + (Number(b.currentBalance) || 0), 0);
@@ -97,7 +93,6 @@ export async function syncUserDataToVectorStore(userId: string) {
     if (rawDocs.length === 0) return { count: 0 };
 
     // 4. Clear Pinecone Namespace & Batch Upsert
-    console.time("⏱️ 2. Batch Vector Upsert");
     const index = pineconeClient.Index(process.env.PINECONE_INDEX_NAME!);
 
     try {
@@ -132,9 +127,6 @@ export async function syncUserDataToVectorStore(userId: string) {
       const batch = records.slice(i, i + 100);
       await index.namespace(userId).upsert(batch);
     }
-    console.timeEnd("⏱️ 2. Batch Vector Upsert");
-
-    console.timeEnd("⏱️ TOTAL SYNC TIME");
 
     return { count: rawDocs.length };
   } catch (error: any) {

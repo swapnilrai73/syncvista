@@ -13,7 +13,6 @@ const cohere = new CohereClient({
 });
 
 export async function POST(req: NextRequest) {
-  console.time("⏱️ TOTAL CHAT ROUTE");
   try {
     // AUTH CHECK: derive the user from the session, never from the request
     // body — otherwise any caller can read another user's namespace just by
@@ -33,8 +32,7 @@ export async function POST(req: NextRequest) {
     const targetNamespace = String(loggedIn.$id).trim();
     const latestMessage = messages[messages.length - 1]?.content || "";
 
-    // 1. Vector Search Benchmark
-    console.time("⏱️ 1. Embedding + Vector Search");
+    // 1. Vector Search
     let contextText = "";
     try {
       if (process.env.PINECONE_API_KEY && process.env.COHERE_API_KEY) {
@@ -45,8 +43,6 @@ export async function POST(req: NextRequest) {
 
         const queryVector = await embeddings.embedQuery(latestMessage);
         const index = pineconeClient.Index(process.env.PINECONE_INDEX_NAME || "");
-
-        console.log("🔍 QUERYING NAMESPACE:", `"${targetNamespace}"`);
 
         const queryResponse = await index.namespace(targetNamespace).query({
           vector: queryVector,
@@ -62,7 +58,6 @@ export async function POST(req: NextRequest) {
     } catch (vectorErr) {
       console.error("Vector retrieval failed:", vectorErr);
     }
-    console.timeEnd("⏱️ 1. Embedding + Vector Search");
 
     // 2. Format Chat History
     const chatHistory = messages.slice(0, -1).map((m: any) => ({
@@ -84,13 +79,7 @@ INSTRUCTIONS:
 3. If no relevant financial records are found in the context above, state: "I couldn't find relevant financial records in your synced context."
 4. Format currency in Indian Rupees (₹).`;
 
-    console.log("🔍 RETRIEVED CONTEXT LENGTH:", contextText.length);
-    if (contextText.length > 0) {
-      console.log("🔍 CONTEXT PREVIEW:", contextText.slice(0, 200));
-    }
-
-    // 3. Stream Initiation Benchmark
-    console.time("⏱️ 2. Cohere Stream Initiation");
+    // 3. Stream Initiation
     const responseStream = await cohere.chatStream({
       model: "command-r-08-2024",
       message: latestMessage,
@@ -98,7 +87,6 @@ INSTRUCTIONS:
       chatHistory: chatHistory,
       temperature: 0.2,
     });
-    console.timeEnd("⏱️ 2. Cohere Stream Initiation");
 
     const encoder = new TextEncoder();
     let firstChunkReceived = false;
@@ -108,7 +96,6 @@ INSTRUCTIONS:
         try {
           for await (const event of responseStream) {
             if (!firstChunkReceived) {
-              console.timeEnd("⏱️ TOTAL CHAT ROUTE");
               firstChunkReceived = true;
             }
             if (event.eventType === "text-generation") {
