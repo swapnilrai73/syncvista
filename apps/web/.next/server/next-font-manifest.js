@@ -1,1 +1,0 @@
-self.__NEXT_FONT_MANIFEST="{\"pages\":{},\"app\":{\"/Users/swapnil/Downloads/syncvista/apps/web/app/layout\":[\"static/media/3988c35203e0830a-s.p.woff2\",\"static/media/91c3caac73720166-s.p.woff2\",\"static/media/e4af272ccee01ff0-s.p.woff2\"]},\"appUsingSizeAdjust\":true,\"pagesUsingSizeAdjust\":false}"
