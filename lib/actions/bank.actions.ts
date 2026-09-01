@@ -1,13 +1,12 @@
 "use server";
 
-import { parseStringify } from "../utils";
+import { parseStringify } from "@/lib/utils";
 import { getSetuAccountData } from "./setu.actions";
 import { getTransactionsByBankId } from "./transaction.actions";
 import { getBanks, getBank, getLoggedInUser } from "./user.actions";
 import { collection, getDocs, query, where } from "firebase/firestore";
-import { db } from "../firebase";
-import { MOCK_BANK_ACCOUNTS, MOCK_TRANSACTIONS } from "../mockData";
-
+import { db } from "@/lib/firebase";
+import { MOCK_BANK_ACCOUNTS, MOCK_TRANSACTIONS } from "@/lib/mockData";
 // Get multiple bank accounts
 export const getAccounts = async ({ userId }: getAccountsProps) => {
   try {

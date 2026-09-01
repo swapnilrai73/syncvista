@@ -1,0 +1,25 @@
+"use strict";
+/*
+ * ATTENTION: An "eval-source-map" devtool has been used.
+ * This devtool is neither made for production nor for readable output files.
+ * It uses "eval()" calls to create a separate source file with attached SourceMaps in the browser devtools.
+ * If you are trying to read the output file, select a different devtool (https://webpack.js.org/configuration/devtool/)
+ * or disable the default devtool with "devtool: false".
+ * If you are looking for production-ready output files, see mode: "production" (https://webpack.js.org/configuration/mode/).
+ */
+exports.id = "vendor-chunks/@smithy+protocol-http@5.6.2";
+exports.ids = ["vendor-chunks/@smithy+protocol-http@5.6.2"];
+exports.modules = {
+
+/***/ "(action-browser)/../../node_modules/.pnpm/@smithy+protocol-http@5.6.2/node_modules/@smithy/protocol-http/dist-es/index.js":
+/*!****************************************************************************************************************!*\
+  !*** ../../node_modules/.pnpm/@smithy+protocol-http@5.6.2/node_modules/@smithy/protocol-http/dist-es/index.js ***!
+  \****************************************************************************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+eval("__webpack_require__.r(__webpack_exports__);\n/* harmony export */ __webpack_require__.d(__webpack_exports__, {\n/* harmony export */   Field: () => (/* reexport safe */ _smithy_core_protocols__WEBPACK_IMPORTED_MODULE_0__.Field),\n/* harmony export */   Fields: () => (/* reexport safe */ _smithy_core_protocols__WEBPACK_IMPORTED_MODULE_1__.Fields),\n/* harmony export */   HttpRequest: () => (/* reexport safe */ _smithy_core_protocols__WEBPACK_IMPORTED_MODULE_2__.HttpRequest),\n/* harmony export */   HttpResponse: () => (/* reexport safe */ _smithy_core_protocols__WEBPACK_IMPORTED_MODULE_3__.HttpResponse),\n/* harmony export */   getHttpHandlerExtensionConfiguration: () => (/* reexport safe */ _smithy_core_protocols__WEBPACK_IMPORTED_MODULE_5__.getHttpHandlerExtensionConfiguration),\n/* harmony export */   isValidHostname: () => (/* reexport safe */ _smithy_core_protocols__WEBPACK_IMPORTED_MODULE_4__.isValidHostname),\n/* harmony export */   resolveHttpHandlerRuntimeConfig: () => (/* reexport safe */ _smithy_core_protocols__WEBPACK_IMPORTED_MODULE_5__.resolveHttpHandlerRuntimeConfig)\n/* harmony export */ });\n/* harmony import */ var _smithy_core_protocols__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @smithy/core/protocols */ \"(action-browser)/../../node_modules/.pnpm/@smithy+core@3.33.3/node_modules/@smithy/core/dist-es/submodules/protocols/protocol-http/Field.js\");\n/* harmony import */ var _smithy_core_protocols__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @smithy/core/protocols */ \"(action-browser)/../../node_modules/.pnpm/@smithy+core@3.33.3/node_modules/@smithy/core/dist-es/submodules/protocols/protocol-http/Fields.js\");\n/* harmony import */ var _smithy_core_protocols__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @smithy/core/protocols */ \"(action-browser)/../../node_modules/.pnpm/@smithy+core@3.33.3/node_modules/@smithy/core/dist-es/submodules/transport/httpRequest.js\");\n/* harmony import */ var _smithy_core_protocols__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @smithy/core/protocols */ \"(action-browser)/../../node_modules/.pnpm/@smithy+core@3.33.3/node_modules/@smithy/core/dist-es/submodules/transport/httpResponse.js\");\n/* harmony import */ var _smithy_core_protocols__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @smithy/core/protocols */ \"(action-browser)/../../node_modules/.pnpm/@smithy+core@3.33.3/node_modules/@smithy/core/dist-es/submodules/transport/isValidHostname.js\");\n/* harmony import */ var _smithy_core_protocols__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @smithy/core/protocols */ \"(action-browser)/../../node_modules/.pnpm/@smithy+core@3.33.3/node_modules/@smithy/core/dist-es/submodules/protocols/protocol-http/extensions/httpExtensionConfiguration.js\");\n\n//# sourceURL=[module]\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiKGFjdGlvbi1icm93c2VyKS8uLi8uLi9ub2RlX21vZHVsZXMvLnBucG0vQHNtaXRoeStwcm90b2NvbC1odHRwQDUuNi4yL25vZGVfbW9kdWxlcy9Ac21pdGh5L3Byb3RvY29sLWh0dHAvZGlzdC1lcy9pbmRleC5qcyIsIm1hcHBpbmdzIjoiOzs7Ozs7Ozs7Ozs7Ozs7O0FBQTJLIiwic291cmNlcyI6WyJ3ZWJwYWNrOi8vd2ViLy4uLy4uL25vZGVfbW9kdWxlcy8ucG5wbS9Ac21pdGh5K3Byb3RvY29sLWh0dHBANS42LjIvbm9kZV9tb2R1bGVzL0BzbWl0aHkvcHJvdG9jb2wtaHR0cC9kaXN0LWVzL2luZGV4LmpzP2NlYjAiXSwic291cmNlc0NvbnRlbnQiOlsiZXhwb3J0IHsgRmllbGQsIEZpZWxkcywgSHR0cFJlcXVlc3QsIEh0dHBSZXNwb25zZSwgaXNWYWxpZEhvc3RuYW1lLCBnZXRIdHRwSGFuZGxlckV4dGVuc2lvbkNvbmZpZ3VyYXRpb24sIHJlc29sdmVIdHRwSGFuZGxlclJ1bnRpbWVDb25maWcsIH0gZnJvbSBcIkBzbWl0aHkvY29yZS9wcm90b2NvbHNcIjtcbiJdLCJuYW1lcyI6W10sInNvdXJjZVJvb3QiOiIifQ==\n//# sourceURL=webpack-internal:///(action-browser)/../../node_modules/.pnpm/@smithy+protocol-http@5.6.2/node_modules/@smithy/protocol-http/dist-es/index.js\n");
+
+/***/ })
+
+};
+;
