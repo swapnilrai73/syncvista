@@ -6,14 +6,14 @@ import TotalBalanceBox from '@/components/TotalBalanceBox';
 import { getAccounts, getAllTransactions } from '@/lib/actions/bank.actions';
 import { getLoggedInUser } from '@/lib/actions/user.actions';
 import { redirect } from 'next/navigation';
-import { engineVersion } from "@syncvista/fire-engine";
+
 
 export const dynamic = 'force-dynamic';
 
 interface PageProps {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
-console.log("FIRE Engine Check:", engineVersion());
+
 
 const Home = async ({ searchParams }: PageProps) => {
   const loggedIn = await getLoggedInUser();
