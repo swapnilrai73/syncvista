@@ -15,6 +15,7 @@ export { getTaxConfig } from "./tax-config/fy2026-27";
 export { MARKET_ASSUMPTIONS_2026 } from "./market-assumptions";
 export { runDebtClearanceEngine, compareDebtStrategies } from "./debt-engine";
 export { computeLiquidityBucketPlan, planWithdrawal, calculateProtectionScore } from "./safety-net";
+export { analyzeTaxHarvestOpportunities } from "./tax-harvest";
 
 /**
  * The single entry point every tier calls. Base, Pro, and Supreme all
