@@ -8,11 +8,13 @@ import { runMonteCarloSimulation } from "./monte-carlo";
 import { estimatePortfolioReturn } from "./market-assumptions";
 import { getTaxConfig } from "./tax-config/fy2026-27";
 import { runDebtClearanceEngine, compareDebtStrategies } from "./debt-engine";
+import { computeLiquidityBucketPlan } from "./safety-net";
 
 export * from "./types";
 export { getTaxConfig } from "./tax-config/fy2026-27";
 export { MARKET_ASSUMPTIONS_2026 } from "./market-assumptions";
 export { runDebtClearanceEngine, compareDebtStrategies } from "./debt-engine";
+export { computeLiquidityBucketPlan, planWithdrawal, calculateProtectionScore } from "./safety-net";
 
 /**
  * The single entry point every tier calls. Base, Pro, and Supreme all
@@ -61,6 +63,10 @@ export function runFireEngine(input: FireEngineInput): FireEngineOutput {
       portfolioReturn;
 
   const monteCarlo = runMonteCarloSimulation(input, targetCorpus);
+  const liquidityBucketPlan = computeLiquidityBucketPlan(
+    targetCorpus * input.assumptions.withdrawalRate,
+    targetCorpus
+  );
 
   if (monteCarlo.survivalProbability < 0.8) {
     warnings.push(
@@ -88,5 +94,6 @@ export function runFireEngine(input: FireEngineInput): FireEngineOutput {
     bucketedContribution,
     warnings,
     debtComparison,
+    liquidityBucketPlan,
   };
 }

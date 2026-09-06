@@ -9,8 +9,9 @@
 // a single expected-value calculation can't.
 // ─────────────────────────────────────────────────────────────────────────
 
-import type { FireEngineInput, MonteCarloResult } from "./types";
+import type { FireEngineInput, MonteCarloResult, ShockEventConfig } from "./types";
 import { estimatePortfolioReturn, estimatePortfolioVolatility } from "./market-assumptions";
+import { getBucketInflationRate } from "./corpus";
 
 /** Box-Muller transform — standard method for sampling a normal distribution from uniform randoms. */
 function sampleNormal(mean: number, stdDev: number): number {
@@ -20,18 +21,50 @@ function sampleNormal(mean: number, stdDev: number): number {
   return mean + stdDev * z0;
 }
 
+/**
+ * Rolls each configured shock for one retirement year and returns the total
+ * cost incurred (0 if none triggered). `yearsFromNow` is total elapsed time
+ * from today — accumulation years plus however far into retirement this
+ * simulated year is — since costMean is specified in today's rupees and
+ * needs aging forward to the year it might actually occur.
+ */
+function rollShocksForYear(
+  shocks: ShockEventConfig[] | undefined,
+  yearsFromNow: number,
+  generalInflationOverride?: number
+): number {
+  if (!shocks || shocks.length === 0) return 0;
+
+  let totalShockCost = 0;
+  for (const shock of shocks) {
+    if (Math.random() >= shock.annualProbability) continue; // shock did not occur this year
+
+    const inflationRate = getBucketInflationRate(shock.inflationBucket, generalInflationOverride);
+    const inflatedMean = shock.costMean * Math.pow(1 + inflationRate, yearsFromNow);
+    const inflatedStdDev = shock.costStdDev * Math.pow(1 + inflationRate, yearsFromNow);
+    const sampledCost = Math.max(0, sampleNormal(inflatedMean, inflatedStdDev));
+
+    totalShockCost += sampledCost;
+  }
+  return totalShockCost;
+}
+
 function runSinglePath(
   startingBalance: number,
   annualWithdrawal: number,
   horizonYears: number,
   expectedReturn: number,
-  volatility: number
+  volatility: number,
+  yearsToRetirement: number,
+  shocks: ShockEventConfig[] | undefined,
+  generalInflationOverride: number | undefined
 ): number {
   let balance = startingBalance;
 
   for (let year = 0; year < horizonYears; year++) {
     const yearReturn = sampleNormal(expectedReturn, volatility);
-    balance = balance * (1 + yearReturn) - annualWithdrawal;
+    const shockCost = rollShocksForYear(shocks, yearsToRetirement + year, generalInflationOverride);
+    balance = balance * (1 + yearReturn) - annualWithdrawal - shockCost;
     if (balance <= 0) return 0;
   }
 
@@ -45,6 +78,7 @@ export function runMonteCarloSimulation(
   const runs = input.assumptions.monteCarloRuns;
   const horizonYears = input.assumptions.postRetirementHorizonYears;
   const annualWithdrawal = targetCorpus * input.assumptions.withdrawalRate;
+  const yearsToRetirement = input.profile.targetRetirementAge - input.profile.currentAge;
 
   const expectedReturn = estimatePortfolioReturn(input.portfolio.allocation);
   const volatility = estimatePortfolioVolatility(input.portfolio.allocation);
@@ -58,7 +92,10 @@ export function runMonteCarloSimulation(
       annualWithdrawal,
       horizonYears,
       expectedReturn,
-      volatility
+      volatility,
+      yearsToRetirement,
+      input.shocks,
+      input.assumptions.generalInflation
     );
     if (endingBalance > 0) survivalCount++;
     endingBalances.push(endingBalance);

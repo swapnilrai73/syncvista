@@ -27,6 +27,19 @@ const BUCKET_INFLATION_DEFAULTS: Record<InflationBucket, number> = {
   housing: 0.06,
 };
 
+/**
+ * Shared inflation-rate lookup, used by both the deterministic corpus
+ * calculation and the Monte Carlo shock library (Module E) — kept in one
+ * place so the two never silently drift apart on what "healthcare
+ * inflation" means.
+ */
+export function getBucketInflationRate(bucket: InflationBucket, generalInflationOverride?: number): number {
+  if (bucket === "general" && generalInflationOverride !== undefined) {
+    return generalInflationOverride;
+  }
+  return BUCKET_INFLATION_DEFAULTS[bucket];
+}
+
 function annualize(monthlyAmount: number): number {
   return monthlyAmount * 12;
 }
@@ -72,10 +85,7 @@ export function calculateBucketedPresentValue(
     const discountFactor = Math.pow(1 + portfolioReturn, year);
 
     for (const bucket of buckets) {
-      const bucketInflation =
-        input.assumptions.generalInflation !== undefined && bucket === "general"
-          ? input.assumptions.generalInflation
-          : BUCKET_INFLATION_DEFAULTS[bucket];
+      const bucketInflation = getBucketInflationRate(bucket, input.assumptions.generalInflation);
 
       // If Module D is active and has an EMI figure for this specific year,
       // it REPLACES the computed housing bucket entirely for that year —
