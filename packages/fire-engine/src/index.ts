@@ -5,7 +5,7 @@ import {
   calculateRequiredMonthlySavings,
 } from "./corpus";
 import { runMonteCarloSimulation } from "./monte-carlo";
-import { estimatePortfolioReturn } from "./market-assumptions";
+import { resolvePortfolioReturn, resolveSafeAssetFraction } from "./instrument-hub";
 import { getTaxConfig } from "./tax-config/fy2026-27";
 import { runDebtClearanceEngine, compareDebtStrategies } from "./debt-engine";
 import { computeLiquidityBucketPlan } from "./safety-net";
@@ -16,6 +16,14 @@ export { MARKET_ASSUMPTIONS_2026 } from "./market-assumptions";
 export { runDebtClearanceEngine, compareDebtStrategies } from "./debt-engine";
 export { computeLiquidityBucketPlan, planWithdrawal, calculateProtectionScore } from "./safety-net";
 export { analyzeTaxHarvestOpportunities } from "./tax-harvest";
+export {
+  INSTRUMENT_ASSUMPTIONS_2026,
+  estimatePortfolioReturnFromInstruments,
+  estimatePortfolioVolatilityFromInstruments,
+  instrumentPortfolioTotal,
+  computeMaxInstrumentWeight,
+  computeSafeInstrumentFraction,
+} from "./instrument-hub";
 
 /**
  * The single entry point every tier calls. Base, Pro, and Supreme all
@@ -46,7 +54,7 @@ export function runFireEngine(input: FireEngineInput): FireEngineOutput {
 
   const targetCorpus = bucketedPresentValue + terminalBaseCorpus;
 
-  const portfolioReturn = estimatePortfolioReturn(input.portfolio.allocation);
+  const portfolioReturn = resolvePortfolioReturn(input.portfolio);
   const { requiredMonthlySavings, surplusAtRetirement } = calculateRequiredMonthlySavings(
     targetCorpus,
     input.portfolio.currentCorpus,
@@ -79,9 +87,9 @@ export function runFireEngine(input: FireEngineInput): FireEngineOutput {
       `Current corpus growth${debtOutput ? " plus freed debt cash flow" : ""} alone is already projected to exceed the target by ~₹${Math.round(surplusAtRetirement).toLocaleString("en-IN")} — no additional monthly savings required based on this model's assumptions.`
     );
   }
-  if (input.portfolio.allocation.cash + input.portfolio.allocation.debt < 0.15 && yearsToRetirement < 5) {
+  if (resolveSafeAssetFraction(input.portfolio) < 0.15 && yearsToRetirement < 5) {
     warnings.push(
-      "Less than 15% in cash/debt with under 5 years to retirement — limited buffer against sequence-of-returns risk near the target date."
+      "Less than 15% in safe (low-volatility) instruments with under 5 years to retirement — limited buffer against sequence-of-returns risk near the target date."
     );
   }
 

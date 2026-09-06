@@ -16,7 +16,7 @@
 
 import type { FireEngineInput, InflationBucket, DebtClearanceOutput } from "./types";
 import { getTaxConfig } from "./tax-config/fy2026-27";
-import { estimatePortfolioReturn } from "./market-assumptions";
+import { resolvePortfolioReturn } from "./instrument-hub";
 import { getCityMultiplier } from "./city-cost-index";
 
 const BUCKET_INFLATION_DEFAULTS: Record<InflationBucket, number> = {
@@ -61,7 +61,7 @@ export function calculateBucketedPresentValue(
     throw new Error("targetRetirementAge must be after currentAge");
   }
 
-  const portfolioReturn = estimatePortfolioReturn(input.portfolio.allocation);
+  const portfolioReturn = resolvePortfolioReturn(input.portfolio);
   const buckets = Object.keys(input.expenses) as InflationBucket[];
 
   // City cost multiplier applies to housing and general-living buckets —
@@ -135,7 +135,7 @@ export function calculateTerminalBaseCorpus(input: FireEngineInput): number {
   const baseAnnualExpense = annualize(input.expenses.general) * cityMultiplier;
   const generalInflation = input.assumptions.generalInflation;
 
-  const portfolioReturn = estimatePortfolioReturn(input.portfolio.allocation);
+  const portfolioReturn = resolvePortfolioReturn(input.portfolio);
   const realReturn = portfolioReturn - generalInflation;
 
   const inflatedBase = baseAnnualExpense * Math.pow(1 + generalInflation, yearsToRetirement);

@@ -47,10 +47,63 @@ export interface AssetAllocation {
   cash: number;
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+// Module C — Multi-Instrument Indian Asset Hub.
+//
+// AssetAllocation above (the six generic buckets) remains the FALLBACK
+// model — it's what the engine uses when this more precise instrument-level
+// breakdown isn't provided. Real Indian portfolios aren't well-represented
+// by "debt" as one blended number: EPF, PPF, and NPS each have their own
+// government-set or market-linked rate, their own lock-in behavior, and
+// (for NPS specifically) their own INTERNAL equity/debt split the user
+// chooses — none of that is visible if it's all collapsed into "debt: 0.25".
+// ─────────────────────────────────────────────────────────────────────────
+
+export type InstrumentType =
+  | "epf"
+  | "ppf"
+  | "npsTier1"
+  | "ssy"
+  | "fixedDeposit"
+  | "physicalGold"
+  | "sgbLegacy" // existing holdings only — primary issuance suspended since Feb 2024, see blueprint Section 5.1
+  | "equityDomestic"
+  | "equityInternational"
+  | "realEstate"
+  | "cash"
+  | "otherDebtInstrument";
+
+export interface InstrumentHolding {
+  type: InstrumentType;
+  currentValue: number;
+  /**
+   * Only meaningful for type: "npsTier1" — NPS is market-linked with the
+   * subscriber's own chosen internal split. Weights should sum to 1;
+   * defaults to a moderate 50/30/20 split if omitted.
+   */
+  npsInternalAllocation?: {
+    equity: number;
+    corporateDebt: number;
+    governmentSecurities: number;
+  };
+}
+
+export type InstrumentPortfolio = InstrumentHolding[];
+
 export interface PortfolioSnapshot {
   currentCorpus: number;
   allocation: AssetAllocation;
   monthlyInvestment: number;
+  /**
+   * Optional — when provided (and non-empty), the engine computes expected
+   * return/volatility from these real instruments instead of the coarser
+   * six-bucket `allocation` above. `allocation` remains required as the
+   * fallback and is still used directly by the liquidity warning check and
+   * Module F's concentration-risk score, which haven't been upgraded to
+   * instrument-level granularity yet — flagged as a known follow-up, not
+   * an oversight.
+   */
+  instruments?: InstrumentPortfolio;
 }
 
 export interface EngineAssumptions {
@@ -233,7 +286,15 @@ export interface ProtectionScoreInput {
   actualLiquidMonths: number;
   /** Default 6; consider 9-12 for volatile-income professions per Module B.2. */
   targetLiquidMonths: number;
-  assetAllocation: AssetAllocation;
+  /**
+   * Same shape as PortfolioSnapshot's allocation/instruments pair — when
+   * `instruments` is provided, concentration risk is computed from real
+   * per-instrument weights instead of the six-bucket max. This is a
+   * breaking rename from the field's original name (`assetAllocation`) to
+   * `portfolio`, changed deliberately now while this module has no other
+   * callers yet, rather than carrying a confusing duplicate field forever.
+   */
+  portfolio: Pick<PortfolioSnapshot, "allocation" | "instruments">;
   /** Discount rate used to present-value the income-replacement stream for Human Life Value. */
   discountRateForHLV: number;
 }

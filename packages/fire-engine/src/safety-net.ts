@@ -16,6 +16,7 @@ import type {
   ProtectionScoreInput,
   ProtectionScoreOutput,
 } from "./types";
+import { resolveMaxSingleHoldingWeight } from "./instrument-hub";
 
 /**
  * 8.1 — splits the target corpus into three withdrawal-sequencing tranches.
@@ -119,7 +120,7 @@ export function calculateProtectionScore(input: ProtectionScoreInput): Protectio
   const insuranceAdequacy = humanLifeValue > 0 ? Math.min(1, input.actualTermCoverAmount / humanLifeValue) : 1;
   const liquidityMonthsNormalized = Math.min(1, input.actualLiquidMonths / input.targetLiquidMonths);
 
-  const maxAssetWeight = Math.max(...Object.values(input.assetAllocation));
+  const maxAssetWeight = resolveMaxSingleHoldingWeight(input.portfolio);
   const concentrationRisk =
     maxAssetWeight <= PRUDENT_CONCENTRATION_THRESHOLD
       ? 0

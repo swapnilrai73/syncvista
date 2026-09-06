@@ -10,7 +10,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 
 import type { FireEngineInput, MonteCarloResult, ShockEventConfig } from "./types";
-import { estimatePortfolioReturn, estimatePortfolioVolatility } from "./market-assumptions";
+import { resolvePortfolioReturn, resolvePortfolioVolatility } from "./instrument-hub";
 import { getBucketInflationRate } from "./corpus";
 
 /** Box-Muller transform — standard method for sampling a normal distribution from uniform randoms. */
@@ -80,8 +80,8 @@ export function runMonteCarloSimulation(
   const annualWithdrawal = targetCorpus * input.assumptions.withdrawalRate;
   const yearsToRetirement = input.profile.targetRetirementAge - input.profile.currentAge;
 
-  const expectedReturn = estimatePortfolioReturn(input.portfolio.allocation);
-  const volatility = estimatePortfolioVolatility(input.portfolio.allocation);
+  const expectedReturn = resolvePortfolioReturn(input.portfolio);
+  const volatility = resolvePortfolioVolatility(input.portfolio);
 
   let survivalCount = 0;
   const endingBalances: number[] = [];
