@@ -7,10 +7,12 @@ import {
 import { runMonteCarloSimulation } from "./monte-carlo";
 import { estimatePortfolioReturn } from "./market-assumptions";
 import { getTaxConfig } from "./tax-config/fy2026-27";
+import { runDebtClearanceEngine, compareDebtStrategies } from "./debt-engine";
 
 export * from "./types";
 export { getTaxConfig } from "./tax-config/fy2026-27";
 export { MARKET_ASSUMPTIONS_2026 } from "./market-assumptions";
+export { runDebtClearanceEngine, compareDebtStrategies } from "./debt-engine";
 
 /**
  * The single entry point every tier calls. Base, Pro, and Supreme all
@@ -27,8 +29,16 @@ export function runFireEngine(input: FireEngineInput): FireEngineOutput {
   const yearsToRetirement = input.profile.targetRetirementAge - input.profile.currentAge;
   const warnings: string[] = [];
 
+  // Module D runs first, if debt data was provided — its output feeds both
+  // the housing bucket (via calculateBucketedPresentValue) and the
+  // investable-capacity calculation (via calculateRequiredMonthlySavings)
+  // below, plus the standalone avalanche-vs-snowball comparison exposed on
+  // the final output.
+  const debtOutput = input.debtClearance ? runDebtClearanceEngine(input.debtClearance) : undefined;
+  const debtComparison = input.debtClearance ? compareDebtStrategies(input.debtClearance) : undefined;
+
   const { presentValue: bucketedPresentValue, bucketedContribution } =
-    calculateBucketedPresentValue(input);
+    calculateBucketedPresentValue(input, debtOutput);
   const terminalBaseCorpus = calculateTerminalBaseCorpus(input);
 
   const targetCorpus = bucketedPresentValue + terminalBaseCorpus;
@@ -38,7 +48,8 @@ export function runFireEngine(input: FireEngineInput): FireEngineOutput {
     targetCorpus,
     input.portfolio.currentCorpus,
     yearsToRetirement,
-    portfolioReturn
+    portfolioReturn,
+    debtOutput?.totalFreedMonthlyCashFlowByYear
   );
 
   const projectedCorpusAtRetirement =
@@ -58,7 +69,7 @@ export function runFireEngine(input: FireEngineInput): FireEngineOutput {
   }
   if (surplusAtRetirement > 0) {
     warnings.push(
-      `Current corpus growth alone is already projected to exceed the target by ~₹${Math.round(surplusAtRetirement).toLocaleString("en-IN")} — no additional monthly savings required based on this model's assumptions.`
+      `Current corpus growth${debtOutput ? " plus freed debt cash flow" : ""} alone is already projected to exceed the target by ~₹${Math.round(surplusAtRetirement).toLocaleString("en-IN")} — no additional monthly savings required based on this model's assumptions.`
     );
   }
   if (input.portfolio.allocation.cash + input.portfolio.allocation.debt < 0.15 && yearsToRetirement < 5) {
@@ -76,5 +87,6 @@ export function runFireEngine(input: FireEngineInput): FireEngineOutput {
     monteCarlo,
     bucketedContribution,
     warnings,
+    debtComparison,
   };
 }

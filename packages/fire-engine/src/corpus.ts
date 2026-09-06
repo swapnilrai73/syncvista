@@ -14,7 +14,7 @@
 // its own terms.
 // ─────────────────────────────────────────────────────────────────────────
 
-import type { FireEngineInput, InflationBucket } from "./types";
+import type { FireEngineInput, InflationBucket, DebtClearanceOutput } from "./types";
 import { getTaxConfig } from "./tax-config/fy2026-27";
 import { estimatePortfolioReturn } from "./market-assumptions";
 import { getCityMultiplier } from "./city-cost-index";
@@ -36,7 +36,10 @@ function annualize(monthlyAmount: number): number {
  * year's inflated expenses between now and retirement — bucketed by
  * inflation category, plus any goal milestones landing in that year.
  */
-export function calculateBucketedPresentValue(input: FireEngineInput): {
+export function calculateBucketedPresentValue(
+  input: FireEngineInput,
+  debtOutput?: DebtClearanceOutput
+): {
   presentValue: number;
   bucketedContribution: Record<InflationBucket, number>;
 } {
@@ -74,10 +77,22 @@ export function calculateBucketedPresentValue(input: FireEngineInput): {
           ? input.assumptions.generalInflation
           : BUCKET_INFLATION_DEFAULTS[bucket];
 
-      const cityAdjustment = CITY_ADJUSTED_BUCKETS.includes(bucket) ? cityMultiplier : 1;
-      const annualExpense = annualize(input.expenses[bucket]) * cityAdjustment;
-      const inflatedExpense = annualExpense * Math.pow(1 + bucketInflation, year);
-      const discountedExpense = inflatedExpense / discountFactor;
+      // If Module D is active and has an EMI figure for this specific year,
+      // it REPLACES the computed housing bucket entirely for that year —
+      // EMI is a fixed nominal payment, not subject to inflation or city
+      // adjustment, and this is what makes "EMI disappears at payoff year"
+      // actually show up in the corpus math instead of being invisible to it.
+      const debtOverride = bucket === "housing" ? debtOutput?.housingExpenseByYear?.[year] : undefined;
+
+      let discountedExpense: number;
+      if (debtOverride !== undefined) {
+        discountedExpense = annualize(debtOverride) / discountFactor;
+      } else {
+        const cityAdjustment = CITY_ADJUSTED_BUCKETS.includes(bucket) ? cityMultiplier : 1;
+        const annualExpense = annualize(input.expenses[bucket]) * cityAdjustment;
+        const inflatedExpense = annualExpense * Math.pow(1 + bucketInflation, year);
+        discountedExpense = inflatedExpense / discountFactor;
+      }
 
       presentValue += discountedExpense;
       bucketedContribution[bucket] += discountedExpense;
@@ -123,18 +138,49 @@ export function calculateRequiredMonthlySavings(
   targetCorpus: number,
   currentCorpus: number,
   yearsToRetirement: number,
-  portfolioReturn: number
+  portfolioReturn: number,
+  freedMonthlyCashFlowByYear?: Record<number, number>
 ): { requiredMonthlySavings: number; surplusAtRetirement: number } {
   const monthsToRetirement = yearsToRetirement * 12;
   const monthlyReturn = portfolioReturn / 12;
 
   const futureValueOfCurrentCorpus = currentCorpus * Math.pow(1 + portfolioReturn, yearsToRetirement);
-  const gap = targetCorpus - futureValueOfCurrentCorpus;
+
+  // Future value contributed by Module D's freed-cash-flow stream alone,
+  // BEFORE solving for the base monthly savings amount. Modeled as one
+  // annual lump sum landing at each year's end (rather than exact monthly
+  // compounding within the year) — a deliberate, documented simplification
+  // that keeps this closed-form rather than requiring a full simulation.
+  //
+  // IMPORTANT: debt-engine.ts's simulation stops recording the moment all
+  // loans are cleared, so freedMonthlyCashFlowByYear has no entry for years
+  // after that point — but the freed cash flow itself doesn't stop, it just
+  // stops changing. Any year beyond the last recorded one carries forward
+  // the last known freed amount rather than defaulting to 0, which would
+  // otherwise silently understate the benefit of paying off debt early.
+  let futureValueOfFreedCashFlow = 0;
+  if (freedMonthlyCashFlowByYear) {
+    const recordedYears = Object.keys(freedMonthlyCashFlowByYear).map(Number);
+    const lastRecordedYear = recordedYears.length ? Math.max(...recordedYears) : 0;
+    const lastKnownFreedAmount = lastRecordedYear ? freedMonthlyCashFlowByYear[lastRecordedYear] : 0;
+
+    for (let year = 1; year <= yearsToRetirement; year++) {
+      const freedThisYear =
+        year <= lastRecordedYear ? freedMonthlyCashFlowByYear[year] || 0 : lastKnownFreedAmount;
+      if (freedThisYear === 0) continue;
+      const annualLumpSum = freedThisYear * 12;
+      const yearsOfGrowthRemaining = yearsToRetirement - year;
+      futureValueOfFreedCashFlow += annualLumpSum * Math.pow(1 + portfolioReturn, yearsOfGrowthRemaining);
+    }
+  }
+
+  const gap = targetCorpus - futureValueOfCurrentCorpus - futureValueOfFreedCashFlow;
 
   if (gap <= 0) {
-    // Already on track from current corpus growth alone — report the
-    // surplus explicitly rather than a bare zero, so "just barely covered"
-    // and "wildly overshooting" are distinguishable in the output.
+    // Already on track from current corpus growth (and, if applicable,
+    // freed debt cash flow) alone — report the surplus explicitly rather
+    // than a bare zero, so "just barely covered" and "wildly overshooting"
+    // are distinguishable in the output.
     return { requiredMonthlySavings: 0, surplusAtRetirement: -gap };
   }
 

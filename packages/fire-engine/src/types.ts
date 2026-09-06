@@ -68,6 +68,8 @@ export interface FireEngineInput {
   assumptions: EngineAssumptions;
   /** Looks up the versioned tax config — e.g. "FY2026-27" */
   taxYear: string;
+  /** Optional — when present, the engine runs Module D internally and feeds its output into the housing bucket and savings-capacity calculations. */
+  debtClearance?: DebtClearanceInput;
 }
 
 export interface MonteCarloResult {
@@ -91,6 +93,11 @@ export interface FireEngineOutput {
   /** Inflated present-value contribution of each expense bucket, for transparency */
   bucketedContribution: Record<InflationBucket, number>;
   warnings: string[];
+  /** Populated only when FireEngineInput.debtClearance was provided — both strategies run for standalone comparison, independent of which one drove the corpus math above. */
+  debtComparison?: {
+    avalanche: DebtClearanceOutput;
+    snowball: DebtClearanceOutput;
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -125,4 +132,75 @@ export interface TaxHarvestAnalysisOutput {
   opportunities: TaxHarvestOpportunity[];
   totalHarvestableLoss: number;
   ltcgExemptionRemaining: number; // vs the versioned Section 112A threshold
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Debt-Clearance module — Module D from the blueprint.
+//
+// Loan[] is the normalized contract: manual entry produces this shape
+// directly; a future adapter (living in apps/web, not this pure package)
+// would map SyncVista's existing bank/transaction data into the same
+// shape once loan-tracking exists in the schema. The engine itself never
+// cares which path produced its input.
+// ─────────────────────────────────────────────────────────────────────────
+
+export type DebtType = "home" | "car" | "personal" | "education" | "other";
+
+export interface Loan {
+  id: string;
+  label: string;
+  type: DebtType;
+  outstandingBalance: number;
+  annualInterestRate: number;
+  monthlyEMI: number;
+  /** Whether Section 24b interest deduction currently applies — regime- and self-occupied-status-dependent. */
+  section24bEligible?: boolean;
+  /** Whether Section 80C principal deduction currently applies — old regime only. */
+  section80CEligible?: boolean;
+}
+
+export interface DebtClearanceInput {
+  loans: Loan[];
+  /** Monthly surplus available to accelerate payoff, beyond minimum EMIs. */
+  extraMonthlyPayment: number;
+  strategy: "avalanche" | "snowball";
+  userMarginalTaxRate: number;
+  expectedPostTaxPortfolioReturn: number;
+}
+
+export interface LoanMonthSnapshot {
+  loanId: string;
+  monthIndex: number;
+  remainingBalance: number;
+  interestPortion: number;
+  principalPortion: number;
+}
+
+export interface DebtClearanceOutput {
+  strategy: "avalanche" | "snowball";
+  payoffOrder: string[];
+  loanClearedMonth: Record<string, number>;
+  totalInterestPaid: number;
+  monthsToDebtFree: number;
+  recommendation: "prepay_aggressively" | "invest_surplus_instead" | "balanced";
+  recommendationReasoning: string;
+  /**
+   * Year-indexed ABSOLUTE nominal home-loan EMI expense still active that
+   * year (year 1 = first year from now, matching corpus.ts's loop). This is
+   * a fixed nominal figure, NOT subject to inflation or city-cost
+   * adjustment — feeding it into the corpus calculation's housing bucket
+   * for the matching year replaces the default computed figure entirely
+   * for that year. Home-loan (type: "home") EMI only — car/personal/other
+   * loans don't belong in the housing bucket.
+   */
+  housingExpenseByYear: Record<number, number>;
+  /**
+   * Year-indexed freed monthly cash flow versus the original total EMI
+   * ACROSS ALL LOAN TYPES (not just home) — this is what increases
+   * investable savings capacity once any debt clears, regardless of
+   * whether that debt was a home loan. Added to fulfil the "freed cash
+   * flow increases investable capacity" half of the auto-feed design —
+   * the original contract only covered the housing-bucket replacement.
+   */
+  totalFreedMonthlyCashFlowByYear: Record<number, number>;
 }
