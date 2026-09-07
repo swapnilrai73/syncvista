@@ -374,3 +374,50 @@ export interface DebtClearanceOutput {
    */
   totalFreedMonthlyCashFlowByYear: Record<number, number>;
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// Presenter/Tier-Gating Layer.
+//
+// One engine, three consumption modes (Base/Pro/Supreme), same as
+// throughout this build. The presenter's job is narrow and specific: it
+// NEVER computes new numbers — those only ever come from the engine — it
+// only redacts specific security/fund identification below Supreme tier
+// and attaches tier-appropriate framing. This is the actual code boundary
+// the SEBI/RIA discussion was about: not a UI nicety, the structural fact
+// that Base/Pro never see a real fund name.
+// ─────────────────────────────────────────────────────────────────────────
+
+export type EngineTier = "base" | "pro" | "supreme";
+
+export interface PresentedTaxHarvestOpportunity {
+  /** Real fund/security name at Supreme tier only. Base/Pro get a generic, non-identifying placeholder — this is the actual redaction, not just a UI label choice. */
+  assetLabel: string;
+  unrealizedGainOrLoss: number;
+  gainType: "STCG" | "LTCG";
+  applicableRule: string;
+}
+
+export interface PresentedTaxHarvestOutput {
+  tier: EngineTier;
+  opportunities: PresentedTaxHarvestOpportunity[];
+  totalHarvestableLoss: number;
+  ltcgExemptionRemaining: number;
+  disclaimer: string;
+}
+
+export interface PresentedFireOutput {
+  tier: EngineTier;
+  disclaimer: string;
+  targetCorpus: number;
+  yearsToRetirement: number;
+  requiredMonthlySavings: number;
+  surplusAtRetirement: number;
+  projectedCorpusAtRetirement: number;
+  monteCarlo: MonteCarloResult;
+  liquidityBucketPlan: LiquidityBucketPlan;
+  warnings: string[];
+  debtComparison?: {
+    avalanche: DebtClearanceOutput;
+    snowball: DebtClearanceOutput;
+  };
+}

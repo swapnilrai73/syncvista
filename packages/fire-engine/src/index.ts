@@ -17,6 +17,12 @@ export { runDebtClearanceEngine, compareDebtStrategies } from "./debt-engine";
 export { computeLiquidityBucketPlan, planWithdrawal, calculateProtectionScore } from "./safety-net";
 export { analyzeTaxHarvestOpportunities } from "./tax-harvest";
 export {
+  getDisclaimer,
+  canAccessStructuringLayer,
+  presentTaxHarvestOutput,
+  presentFireOutput,
+} from "./presenter";
+export {
   INSTRUMENT_ASSUMPTIONS_2026,
   estimatePortfolioReturnFromInstruments,
   estimatePortfolioVolatilityFromInstruments,
