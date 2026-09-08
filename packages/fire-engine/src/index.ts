@@ -13,6 +13,7 @@ import { computeLiquidityBucketPlan } from "./safety-net";
 export * from "./types";
 export { getTaxConfig } from "./tax-config/fy2026-27";
 export { MARKET_ASSUMPTIONS_2026 } from "./market-assumptions";
+export { runMonteCarloSimulation, mulberry32 } from "./monte-carlo";
 export { runDebtClearanceEngine, compareDebtStrategies } from "./debt-engine";
 export { computeLiquidityBucketPlan, planWithdrawal, calculateProtectionScore } from "./safety-net";
 export { analyzeTaxHarvestOpportunities } from "./tax-harvest";
@@ -58,7 +59,7 @@ export function runFireEngine(input: FireEngineInput): FireEngineOutput {
     calculateBucketedPresentValue(input, debtOutput);
   const terminalBaseCorpus = calculateTerminalBaseCorpus(input);
 
-  const targetCorpus = bucketedPresentValue + terminalBaseCorpus;
+  const targetCorpus = Math.max(bucketedPresentValue, terminalBaseCorpus);
 
   const portfolioReturn = resolvePortfolioReturn(input.portfolio);
   const { requiredMonthlySavings, surplusAtRetirement } = calculateRequiredMonthlySavings(

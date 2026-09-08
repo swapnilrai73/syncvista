@@ -13,12 +13,27 @@ import type { FireEngineInput, MonteCarloResult, ShockEventConfig } from "./type
 import { resolvePortfolioReturn, resolvePortfolioVolatility } from "./instrument-hub";
 import { getBucketInflationRate } from "./corpus";
 
-/** Box-Muller transform — standard method for sampling a normal distribution from uniform randoms. */
-function sampleNormal(mean: number, stdDev: number): number {
-  const u1 = Math.random();
-  const u2 = Math.random();
+/** Box-Muller transform using a seeded PRNG — standard method for sampling N(mean, stdDev). */
+function sampleNormal(mean: number, stdDev: number, rng: () => number): number {
+  const u1 = Math.max(1e-15, rng());
+  const u2 = rng();
   const z0 = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
   return mean + stdDev * z0;
+}
+
+/**
+ * Mulberry32 — lightweight, high-performance 32-bit seeded pseudo-random number generator.
+ * Produces uniform floats in [0, 1) to ensure 100% deterministic, reproducible Monte Carlo runs.
+ */
+export function mulberry32(seed: number): () => number {
+  let a = seed >>> 0;
+  return function () {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
 }
 
 /**
@@ -31,18 +46,19 @@ function sampleNormal(mean: number, stdDev: number): number {
 function rollShocksForYear(
   shocks: ShockEventConfig[] | undefined,
   yearsFromNow: number,
-  generalInflationOverride?: number
+  generalInflationOverride: number | undefined,
+  rng: () => number
 ): number {
   if (!shocks || shocks.length === 0) return 0;
 
   let totalShockCost = 0;
   for (const shock of shocks) {
-    if (Math.random() >= shock.annualProbability) continue; // shock did not occur this year
+    if (rng() >= shock.annualProbability) continue; // shock did not occur this year
 
     const inflationRate = getBucketInflationRate(shock.inflationBucket, generalInflationOverride);
     const inflatedMean = shock.costMean * Math.pow(1 + inflationRate, yearsFromNow);
     const inflatedStdDev = shock.costStdDev * Math.pow(1 + inflationRate, yearsFromNow);
-    const sampledCost = Math.max(0, sampleNormal(inflatedMean, inflatedStdDev));
+    const sampledCost = Math.max(0, sampleNormal(inflatedMean, inflatedStdDev, rng));
 
     totalShockCost += sampledCost;
   }
@@ -51,20 +67,23 @@ function rollShocksForYear(
 
 function runSinglePath(
   startingBalance: number,
-  annualWithdrawal: number,
+  initialAnnualWithdrawal: number,
   horizonYears: number,
   expectedReturn: number,
   volatility: number,
   yearsToRetirement: number,
   shocks: ShockEventConfig[] | undefined,
-  generalInflationOverride: number | undefined
+  generalInflation: number,
+  rng: () => number
 ): number {
   let balance = startingBalance;
 
   for (let year = 0; year < horizonYears; year++) {
-    const yearReturn = sampleNormal(expectedReturn, volatility);
-    const shockCost = rollShocksForYear(shocks, yearsToRetirement + year, generalInflationOverride);
-    balance = balance * (1 + yearReturn) - annualWithdrawal - shockCost;
+    const yearReturn = sampleNormal(expectedReturn, volatility, rng);
+    const shockCost = rollShocksForYear(shocks, yearsToRetirement + year, generalInflation, rng);
+    // Accurately compound general inflation on annual retirement withdrawals
+    const currentWithdrawal = initialAnnualWithdrawal * Math.pow(1 + generalInflation, year);
+    balance = balance * (1 + yearReturn) - currentWithdrawal - shockCost;
     if (balance <= 0) return 0;
   }
 
@@ -79,9 +98,14 @@ export function runMonteCarloSimulation(
   const horizonYears = input.assumptions.postRetirementHorizonYears;
   const annualWithdrawal = targetCorpus * input.assumptions.withdrawalRate;
   const yearsToRetirement = input.profile.targetRetirementAge - input.profile.currentAge;
+  const generalInflation = input.assumptions.generalInflation ?? 0.06;
 
   const expectedReturn = resolvePortfolioReturn(input.portfolio);
   const volatility = resolvePortfolioVolatility(input.portfolio);
+
+  // Initialize deterministic PRNG (defaults to seed 42 if not provided)
+  const seed = input.assumptions.seed ?? 42;
+  const rng = mulberry32(seed);
 
   let survivalCount = 0;
   const endingBalances: number[] = [];
@@ -95,7 +119,8 @@ export function runMonteCarloSimulation(
       volatility,
       yearsToRetirement,
       input.shocks,
-      input.assumptions.generalInflation
+      generalInflation,
+      rng
     );
     if (endingBalance > 0) survivalCount++;
     endingBalances.push(endingBalance);

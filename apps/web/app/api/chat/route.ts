@@ -3,6 +3,7 @@ import { Pinecone } from "@pinecone-database/pinecone";
 import { CohereEmbeddings } from "@langchain/cohere";
 import { CohereClient } from "cohere-ai";
 import { getLoggedInUser } from "@/lib/actions/user.actions";
+import { getAccounts } from "@/lib/actions/bank.actions";
 
 const pineconeClient = new Pinecone({
   apiKey: process.env.PINECONE_API_KEY || "",
@@ -32,7 +33,32 @@ export async function POST(req: NextRequest) {
     const targetNamespace = String(loggedIn.$id).trim();
     const latestMessage = messages[messages.length - 1]?.content || "";
 
-    // 1. Vector Search
+    // 1. Fetch Authoritative Deterministic System of Record
+    let deterministicRecord = "";
+    try {
+      const accountsResult = await getAccounts({ userId: loggedIn.$id });
+      if (accountsResult && accountsResult.data) {
+        const { data: accounts, totalBanks, totalCurrentBalance } = accountsResult;
+        const formattedAccounts = (accounts || [])
+          .map(
+            (acc: any) =>
+              `- ${acc.officialName || acc.name || "Account"} (mask: ${acc.mask || "N/A"}, type: ${acc.subtype || acc.type || "depository"}): ₹${Number(acc.currentBalance || 0).toLocaleString("en-IN")}`
+          )
+          .join("\n");
+
+        deterministicRecord = [
+          `Total Connected Bank Accounts: ${totalBanks}`,
+          `Total Liquid / Depository Balance: ₹${Number(totalCurrentBalance || 0).toLocaleString("en-IN")}`,
+          "Account Breakdown:",
+          formattedAccounts || "- No individual accounts listed.",
+        ].join("\n");
+      }
+    } catch (accErr) {
+      console.error("Failed to load deterministic account records:", accErr);
+      deterministicRecord = "Deterministic account records are currently unavailable.";
+    }
+
+    // 2. Vector Search (Retrieved Historical / Transaction Context)
     let contextText = "";
     try {
       if (process.env.PINECONE_API_KEY && process.env.COHERE_API_KEY) {
@@ -59,25 +85,33 @@ export async function POST(req: NextRequest) {
       console.error("Vector retrieval failed:", vectorErr);
     }
 
-    // 2. Format Chat History
+    // 3. Format Chat History
     const chatHistory = messages.slice(0, -1).map((m: any) => ({
       role: m.sender === "user" ? ("USER" as const) : ("CHATBOT" as const),
       message: m.content || "",
     }));
 
-    const preamble = `You are SyncVista AI, a personal financial advisor.
+    const preamble = `You are SyncVista Assistant, an AI financial intelligence and decision-support companion for SyncVista.
 
-You have access to the user's indexed financial data provided below:
+REGULATORY STATUS & STRICT COMPLIANCE BOUNDARIES:
+- You are an educational decision-support tool, NOT a SEBI-registered Investment Adviser (RIA), broker, portfolio manager, or research analyst under SEBI (Investment Advisers) Regulations, 2013.
+- You MUST NOT claim to be a "personal financial advisor", give personalized investment advice, recommend specific securities or stock purchases/sales, or promise or guarantee financial returns.
+- All financial calculations, projections, and scenarios are strictly mathematical models designed for informational and educational decision support.
+- Always include an advisory note reminding the user to consult a SEBI-registered professional before making significant investment, tax, or legal decisions.
 
-=== FINANCIAL RECORDS ===
-${contextText || "No financial records found in vector database."}
-========================
+=== DETERMINISTIC FINANCIAL SYSTEM OF RECORD ===
+${deterministicRecord || "No connected accounts found in the primary ledger."}
+================================================
 
-INSTRUCTIONS:
-1. Analyze the FINANCIAL RECORDS above to answer the query directly.
-2. Do not ask the user for income or expense data if it can be derived or summarized from the records.
-3. If no relevant financial records are found in the context above, state: "I couldn't find relevant financial records in your synced context."
-4. Format currency in Indian Rupees (₹).`;
+=== RETRIEVED HISTORICAL & TRANSACTION CONTEXT ===
+${contextText || "No contextual transaction records found in the vector database."}
+==================================================
+
+OPERATIONAL INSTRUCTIONS & ARITHMETIC RULES:
+1. AUTHORITATIVE TRUTH: The metrics in the "DETERMINISTIC FINANCIAL SYSTEM OF RECORD" represent verified, real-time ledger data. NEVER perform mental arithmetic over fragmented chunks in the "RETRIEVED CONTEXT" to recalculate, guess, or contradict total bank balances or account counts. When the user asks for their total balance or accounts, cite the authoritative figures directly.
+2. CONTEXTUAL REASONING: Use the "RETRIEVED HISTORICAL & TRANSACTION CONTEXT" to answer questions regarding merchant transactions, category spending, historical cash flows, or temporal patterns.
+3. MISSING OR AMBIGUOUS DATA: If the requested information cannot be found in either the deterministic record or the retrieved context, explicitly state: "I couldn't find relevant financial records in your synced data." Do not fabricate transactions or balances.
+4. CURRENCY & NUMBER FORMAT: Always format amounts in Indian Rupees (₹) using Indian number grouping (e.g., ₹1,00,000 or ₹12,50,000). Maintain a professional, objective, and analytical tone.`;
 
     // 3. Stream Initiation
     const responseStream = await cohere.chatStream({

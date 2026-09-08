@@ -111,6 +111,8 @@ export interface EngineAssumptions {
   withdrawalRate: number; // e.g. 0.038
   monteCarloRuns: number; // e.g. 1000
   postRetirementHorizonYears: number; // e.g. 30
+  /** Optional seed for deterministic Monte Carlo simulation (defaults to 42) */
+  seed?: number;
 }
 
 export interface FireEngineInput {

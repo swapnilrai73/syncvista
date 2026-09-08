@@ -45,9 +45,9 @@ function annualize(monthlyAmount: number): number {
 }
 
 /**
- * Present value, discounted at the portfolio's expected return, of every
- * year's inflated expenses between now and retirement — bucketed by
- * inflation category, plus any goal milestones landing in that year.
+ * Required corpus at retirement date, discounted at the portfolio's expected return,
+ * to fund every year's inflated expenses across the post-retirement horizon —
+ * bucketed by inflation category, plus any goal milestones.
  */
 export function calculateBucketedPresentValue(
   input: FireEngineInput,
@@ -61,14 +61,11 @@ export function calculateBucketedPresentValue(
     throw new Error("targetRetirementAge must be after currentAge");
   }
 
+  const horizonYears = input.assumptions.postRetirementHorizonYears || 30;
   const portfolioReturn = resolvePortfolioReturn(input.portfolio);
   const buckets = Object.keys(input.expenses) as InflationBucket[];
 
-  // City cost multiplier applies to housing and general-living buckets —
-  // the researched figures (₹50-60k/mo Mumbai "comfortable lifestyle" vs
-  // ₹20-25k/mo in Jaipur/Bhopal-tier cities) measure total living cost
-  // (rent + food + transport + utilities), not rent alone, so it's applied
-  // to both buckets that represent that spend, not just housing.
+  // City cost multiplier applies to housing and general-living buckets
   const cityMultiplier = getCityMultiplier(input.profile.cityTier, input.profile.city);
   const CITY_ADJUSTED_BUCKETS: InflationBucket[] = ["housing", "general"];
 
@@ -81,43 +78,54 @@ export function calculateBucketedPresentValue(
     housing: 0,
   };
 
-  for (let year = 1; year <= yearsToRetirement; year++) {
-    const discountFactor = Math.pow(1 + portfolioReturn, year);
+  // 1. Post-retirement expenses: model the stream over horizonYears starting at retirement date
+  for (const bucket of buckets) {
+    const bucketInflation = getBucketInflationRate(bucket, input.assumptions.generalInflation);
+    const cityAdjustment = CITY_ADJUSTED_BUCKETS.includes(bucket) ? cityMultiplier : 1;
+    const annualExpenseToday = annualize(input.expenses[bucket]) * cityAdjustment;
 
-    for (const bucket of buckets) {
-      const bucketInflation = getBucketInflationRate(bucket, input.assumptions.generalInflation);
+    // Inflate the annual expense from today up to retirement date
+    const annualExpenseAtRetirement = annualExpenseToday * Math.pow(1 + bucketInflation, yearsToRetirement);
 
-      // If Module D is active and has an EMI figure for this specific year,
-      // it REPLACES the computed housing bucket entirely for that year —
-      // EMI is a fixed nominal payment, not subject to inflation or city
-      // adjustment, and this is what makes "EMI disappears at payoff year"
-      // actually show up in the corpus math instead of being invisible to it.
-      const debtOverride = bucket === "housing" ? debtOutput?.housingExpenseByYear?.[year] : undefined;
+    for (let y = 1; y <= horizonYears; y++) {
+      const discountFactor = Math.pow(1 + portfolioReturn, y);
+      const totalYearFromToday = yearsToRetirement + y;
 
-      let discountedExpense: number;
+      // Check if debt payoff overrides housing bucket in this specific retirement year
+      const debtOverride =
+        bucket === "housing" ? debtOutput?.housingExpenseByYear?.[totalYearFromToday] : undefined;
+
+      let expenseInYear: number;
       if (debtOverride !== undefined) {
-        discountedExpense = annualize(debtOverride) / discountFactor;
+        expenseInYear = annualize(debtOverride);
       } else {
-        const cityAdjustment = CITY_ADJUSTED_BUCKETS.includes(bucket) ? cityMultiplier : 1;
-        const annualExpense = annualize(input.expenses[bucket]) * cityAdjustment;
-        const inflatedExpense = annualExpense * Math.pow(1 + bucketInflation, year);
-        discountedExpense = inflatedExpense / discountFactor;
+        expenseInYear = annualExpenseAtRetirement * Math.pow(1 + bucketInflation, y);
       }
 
-      presentValue += discountedExpense;
-      bucketedContribution[bucket] += discountedExpense;
+      const discountedToRetirement = expenseInYear / discountFactor;
+      presentValue += discountedToRetirement;
+      bucketedContribution[bucket] += discountedToRetirement;
+    }
+  }
+
+  // 2. Goal milestones:
+  // - Goals occurring before or at retirement: capital needed at retirement is compounded forward
+  // - Goals occurring during retirement: capital needed is discounted back to retirement date
+  for (const goal of input.goals) {
+    const goalInflation = BUCKET_INFLATION_DEFAULTS[goal.inflationBucket];
+    const inflatedGoal = goal.amountToday * Math.pow(1 + goalInflation, goal.yearFromNow);
+
+    let goalValueAtRetirement: number;
+    if (goal.yearFromNow <= yearsToRetirement) {
+      const yearsToGrow = yearsToRetirement - goal.yearFromNow;
+      goalValueAtRetirement = inflatedGoal * Math.pow(1 + portfolioReturn, yearsToGrow);
+    } else {
+      const yearsInRetirement = goal.yearFromNow - yearsToRetirement;
+      goalValueAtRetirement = inflatedGoal / Math.pow(1 + portfolioReturn, yearsInRetirement);
     }
 
-    for (const goal of input.goals) {
-      if (goal.yearFromNow === year) {
-        const goalInflation = BUCKET_INFLATION_DEFAULTS[goal.inflationBucket];
-        const inflatedGoal = goal.amountToday * Math.pow(1 + goalInflation, year);
-        const discountedGoal = inflatedGoal / discountFactor;
-
-        presentValue += discountedGoal;
-        bucketedContribution[goal.inflationBucket] += discountedGoal;
-      }
-    }
+    presentValue += goalValueAtRetirement;
+    bucketedContribution[goal.inflationBucket] += goalValueAtRetirement;
   }
 
   return { presentValue, bucketedContribution };
@@ -125,9 +133,8 @@ export function calculateBucketedPresentValue(
 
 /**
  * The terminal "base corpus" floor: 25x annual essential (general-bucket)
- * spend at retirement, inflation-adjusted, discounted back at real return.
- * This is the classic FIRE rule-of-thumb, kept as a floor underneath the
- * more detailed bucketed model above — not a replacement for it.
+ * spend at retirement, inflation-adjusted to retirement date.
+ * This classic FIRE rule-of-thumb sits underneath as a minimum floor.
  */
 export function calculateTerminalBaseCorpus(input: FireEngineInput): number {
   const yearsToRetirement = input.profile.targetRetirementAge - input.profile.currentAge;
@@ -135,13 +142,11 @@ export function calculateTerminalBaseCorpus(input: FireEngineInput): number {
   const baseAnnualExpense = annualize(input.expenses.general) * cityMultiplier;
   const generalInflation = input.assumptions.generalInflation;
 
-  const portfolioReturn = resolvePortfolioReturn(input.portfolio);
-  const realReturn = portfolioReturn - generalInflation;
+  // Inflated general expense at retirement date
+  const inflatedBaseAtRetirement = baseAnnualExpense * Math.pow(1 + generalInflation, yearsToRetirement);
 
-  const inflatedBase = baseAnnualExpense * Math.pow(1 + generalInflation, yearsToRetirement);
-  const terminalValue = 25 * inflatedBase;
-
-  return terminalValue / Math.pow(1 + realReturn, yearsToRetirement);
+  // 25x annual spend at retirement date (in rupees at retirement)
+  return 25 * inflatedBaseAtRetirement;
 }
 
 export function calculateRequiredMonthlySavings(

@@ -46,8 +46,8 @@ export const getAccounts = async ({ userId }: getAccountsProps) => {
         if (bank.mock) {
           accountData = {
             id: bank.accountId,
-            availableBalance: (bank as any).availableBalance || (bank as any).currentBalance || 0,
-            currentBalance: (bank as any).currentBalance || 0,
+            availableBalance: (bank as any).availableBalance ?? (bank as any).currentBalance ?? 0,
+            currentBalance: (bank as any).currentBalance ?? 0,
             institutionId: (bank as any).institutionId || "setu",
             name: (bank as any).name || "Bank account",
             officialName: (bank as any).officialName || (bank as any).name || "Bank account",
@@ -81,11 +81,12 @@ export const getAccounts = async ({ userId }: getAccountsProps) => {
       (account: any) => 
         account.currentBalance === undefined || 
         account.currentBalance === null ||
+        Number.isNaN(account.currentBalance) ||
         !account.name
     );
 
     if (hasInvalidAccounts) {
-      console.log("Found accounts with zero balance or missing fields, returning mock data");
+      console.log("Found accounts with missing balance or required fields, returning mock data");
       const mockAccounts = MOCK_BANK_ACCOUNTS.map((bank: any) => ({
         id: bank.accountId,
         availableBalance: (bank as any).availableBalance || (bank as any).currentBalance || 0,
@@ -174,8 +175,8 @@ export const getAccount = async ({ bankDocumentId }: getAccountProps) => {
     if (bank.mock) {
       accountData = {
         id: bank.accountId,
-        availableBalance: bank.availableBalance || bank.currentBalance || 0,
-        currentBalance: bank.currentBalance || 0,
+        availableBalance: bank.availableBalance ?? bank.currentBalance ?? 0,
+        currentBalance: bank.currentBalance ?? 0,
         institutionId: bank.institutionId || "setu",
         name: bank.name || "Bank account",
         officialName: bank.officialName || bank.name || "Bank account",
@@ -183,37 +184,6 @@ export const getAccount = async ({ bankDocumentId }: getAccountProps) => {
         type: bank.type || "depository",
         subtype: bank.subtype || "bank",
       };
-
-      // If account has zero balance or missing fields, merge with mock data
-      if (accountData.currentBalance === 0 || !accountData.officialName || accountData.officialName === "Bank account") {
-        console.log("Account has zero balance or missing fields, merging with mock data");
-        const mockAccount = MOCK_BANK_ACCOUNTS.find((mock: any) => 
-          mock.bankName?.toLowerCase().includes(bank.name?.toLowerCase() || "") ||
-          mock.institutionId === bank.institutionId
-        );
-
-        if (mockAccount) {
-          accountData = {
-            ...accountData,
-            currentBalance: mockAccount.currentBalance,
-            availableBalance: mockAccount.availableBalance,
-            officialName: mockAccount.officialName,
-            mask: mockAccount.mask,
-            name: mockAccount.name,
-          };
-        } else {
-          // Fallback to first mock account if no match found
-          const fallbackAccount = MOCK_BANK_ACCOUNTS[0];
-          accountData = {
-            ...accountData,
-            currentBalance: fallbackAccount.currentBalance,
-            availableBalance: fallbackAccount.availableBalance,
-            officialName: fallbackAccount.officialName,
-            mask: fallbackAccount.mask,
-            name: fallbackAccount.name,
-          };
-        }
-      }
 
       // Get transactions from Firestore for this mock bank
       const transferTransactionsData = await getTransactionsByBankId({
@@ -234,37 +204,6 @@ export const getAccount = async ({ bankDocumentId }: getAccountProps) => {
       );
     } else {
       accountData = await getSetuAccount(bank);
-
-      // If account has zero balance or missing fields, merge with mock data
-      if (accountData.currentBalance === 0 || !accountData.officialName || accountData.officialName === "Bank account") {
-        console.log("Setu account has zero balance or missing fields, merging with mock data");
-        const mockAccount = MOCK_BANK_ACCOUNTS.find((mock: any) => 
-          mock.bankName?.toLowerCase().includes(bank.name?.toLowerCase() || "") ||
-          mock.institutionId === bank.institutionId
-        );
-
-        if (mockAccount) {
-          accountData = {
-            ...accountData,
-            currentBalance: mockAccount.currentBalance,
-            availableBalance: mockAccount.availableBalance,
-            officialName: mockAccount.officialName,
-            mask: mockAccount.mask,
-            name: mockAccount.name,
-          };
-        } else {
-          // Fallback to first mock account if no match found
-          const fallbackAccount = MOCK_BANK_ACCOUNTS[0];
-          accountData = {
-            ...accountData,
-            currentBalance: fallbackAccount.currentBalance,
-            availableBalance: fallbackAccount.availableBalance,
-            officialName: fallbackAccount.officialName,
-            mask: fallbackAccount.mask,
-            name: fallbackAccount.name,
-          };
-        }
-      }
 
       // Include locally recorded transfer transactions.
       const transferTransactionsData = await getTransactionsByBankId({
