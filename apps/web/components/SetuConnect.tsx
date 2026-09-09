@@ -5,7 +5,7 @@ import { useState } from "react";
 import { createSetuConsent } from "@/lib/actions/setu.actions";
 import { Button } from "./ui/button";
 
-const SetuConnect = ({ user, variant }: SetuConnectProps) => {
+const SetuConnect = ({ user, variant, children, className, buttonClassName }: SetuConnectProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -24,24 +24,24 @@ const SetuConnect = ({ user, variant }: SetuConnectProps) => {
     }
   };
 
-  const content = (
+  const defaultContent = (
     <>
       <Image src="/icons/connect-bank.svg" aria-hidden="true" alt="connect bank" width={24} height={24} />
-      <p className={variant === "primary" ? "hidden" : "text-[16px] font-semibold text-black-2"}>
+      <p className={variant === "primary" ? "hidden" : "text-[16px] font-semibold text-black-2 max-xl:hidden"}>
         Connect bank
       </p>
     </>
   );
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className={className || "flex flex-col gap-2"}>
       <Button
         onClick={connectBank}
         disabled={isLoading}
         variant={variant === "ghost" ? "ghost" : "default"}
-        className={variant === "primary" ? "setuconnect-primary" : "setuconnect-default"}
+        className={buttonClassName || (variant === "primary" ? "setuconnect-primary" : variant === "custom" ? "" : "setuconnect-default")}
       >
-        {isLoading ? "Connecting..." : content}
+        {isLoading ? "Connecting..." : (children || defaultContent)}
       </Button>
       {errorMessage && <p className="form-message" role="alert">{errorMessage}</p>}
     </div>

@@ -13,7 +13,7 @@ interface Message {
 }
 
 interface AIChatWidgetProps {
-  userId: string;
+  userId?: string;
 }
 
 const SUGGESTED_QUERIES = [
@@ -24,7 +24,7 @@ const SUGGESTED_QUERIES = [
 
 const AUTH_ROUTES = ["/sign-in", "/sign-up", "/login", "/register", "/auth"];
 
-export default function AIChatWidget({ userId: initialUserId }: AIChatWidgetProps) {
+export default function AIChatWidget({ userId: initialUserId = "" }: AIChatWidgetProps) {
   const [userId, setUserId] = useState(initialUserId);
   const pathname = usePathname();
   const router = useRouter();

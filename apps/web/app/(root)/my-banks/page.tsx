@@ -7,6 +7,7 @@ import { getLoggedInUser } from '@/lib/actions/user.actions';
 import { formatAmount } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { MOCK_DATA } from '@/lib/mockData';
+import SetuConnect from '@/components/SetuConnect';
 
 const MyBanks = async () => {
   const loggedIn = await getLoggedInUser();
@@ -78,17 +79,20 @@ const MyBanks = async () => {
             </div>
             ))}
             
-            <Link
-              href="/"
-              className="relative flex h-[190px] w-full max-w-[320px] justify-center items-center rounded-[20px] border-2 border-dashed border-gray-300 bg-gray-50 hover:border-blue-500 hover:bg-blue-50/30 transition-all cursor-pointer"
-            >
-              <div className="flex flex-col items-center gap-3">
-                <div className="flex-center size-12 rounded-full bg-gray-200">
-                  <Plus className="size-6 text-gray-500" />
+            {loggedIn && (
+              <SetuConnect
+                user={loggedIn}
+                variant="custom"
+                buttonClassName="relative flex h-[190px] w-full max-w-[320px] justify-center items-center rounded-[20px] border-2 border-dashed border-gray-300 bg-gray-50 hover:border-blue-500 hover:bg-blue-50/30 transition-all cursor-pointer p-0 shadow-none text-left"
+              >
+                <div className="flex flex-col items-center gap-3">
+                  <div className="flex-center size-12 rounded-full bg-gray-200">
+                    <Plus className="size-6 text-gray-500" />
+                  </div>
+                  <p className="text-16 font-semibold text-gray-600">Add Bank Account</p>
                 </div>
-                <p className="text-16 font-semibold text-gray-600">Add Bank Account</p>
-              </div>
-            </Link>
+              </SetuConnect>
+            )}
           </div>
         </div>
       </div>

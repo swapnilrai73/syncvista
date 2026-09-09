@@ -22,7 +22,6 @@
     "@radix-ui/react-select": "^2.0.0",
     "@radix-ui/react-slot": "^1.0.2",
     "@radix-ui/react-tabs": "^1.0.4",
-    "@sentry/nextjs": "^10.70.0",
     "@syncvista/fire-engine": "workspace:*",
     "@tremor/react": "^3.18.7",
     "casparser": "^1.0.0",

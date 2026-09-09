@@ -5,6 +5,8 @@ import BankCard from './BankCard'
 import { countTransactionCategories } from '@/lib/utils'
 import Category from './Category'
 
+import SetuConnect from './SetuConnect'
+
 const RightSidebar = ({ user, transactions, banks }: RightSidebarProps) => {
   const categories: CategoryCount[] = countTransactionCategories(transactions);
 
@@ -29,19 +31,24 @@ const RightSidebar = ({ user, transactions, banks }: RightSidebarProps) => {
       </section>
 
       <section className="banks">
-        <div className="flex w-full justify-between">
+        <div className="flex w-full justify-between items-center">
           <h2 className="header-2">My Banks</h2>
-          <Link href="/" className="flex gap-2">
+          <SetuConnect
+            user={user}
+            variant="custom"
+            className="flex"
+            buttonClassName="flex items-center gap-2 p-0 h-auto bg-transparent hover:bg-transparent shadow-none border-none text-left cursor-pointer"
+          >
             <Image 
-               src="/icons/plus.svg"
+              src="/icons/plus.svg"
               width={20}
               height={20}
               alt="plus"
             />
-            <h2 className="text-14 font-semibold text-gray-600">
+            <h2 className="text-14 font-semibold text-gray-600 hover:text-gray-900 transition-colors">
               Add Bank
             </h2>
-          </Link>
+          </SetuConnect>
         </div>
 
         {banks?.length > 0 && (

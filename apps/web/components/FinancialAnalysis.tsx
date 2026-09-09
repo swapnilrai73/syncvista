@@ -2,13 +2,14 @@
 
 import { useState } from 'react'
 import { Metric, Text, AreaChart, BarChart, DonutChart } from '@tremor/react'
-import { Wallet, Zap, Target, CreditCard, X } from 'lucide-react'
+import { Wallet, Zap, Target, CreditCard, X, AlertTriangle, ShieldCheck } from 'lucide-react'
 import {
   calculateFinancialHealth,
   detectSubscriptions,
   detectAnomalies,
   calculateNetWorth,
   calculateMonthlyCashFlow,
+  type AnomalyDetection,
 } from '@/lib/analytics/engine'
 import { formatAmount } from '@/lib/utils'
 
@@ -339,9 +340,19 @@ const FinancialAnalysis = ({ transactions = [], bankBalances = [], investmentSum
                   style={{ width: `${runwayPercent}%` }}
               />
             </div>
-            <Text className="text-slate-500 text-xs mt-2 text-center">
-              {runwayMonths >= targetRunway ? '✓ Healthy runway' : '⚠ Low runway warning'}
-            </Text>
+            <div className="flex items-center justify-center gap-1.5 mt-2">
+              {runwayMonths >= targetRunway ? (
+                <>
+                  <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
+                  <span className="text-slate-500 text-xs font-medium">Healthy runway</span>
+                </>
+              ) : (
+                <>
+                  <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
+                  <span className="text-amber-600 text-xs font-medium">Low runway warning</span>
+                </>
+              )}
+            </div>
           </div>
 
           {/* Subscription Leakage */}
@@ -595,6 +606,90 @@ const FinancialAnalysis = ({ transactions = [], bankBalances = [], investmentSum
             />
           </div>
 
+        </div>
+
+        {/* Row 4: Statistical Spending Anomaly Detection */}
+        <div className="mt-6 bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-amber-500" />
+                <h3 className="text-base font-semibold text-slate-800 tracking-tight">
+                  Statistical Spending Anomalies
+                </h3>
+                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                  anomalies.length > 0 
+                    ? 'bg-amber-50 text-amber-700 border border-amber-200' 
+                    : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                }`}>
+                  {anomalies.length} {anomalies.length === 1 ? 'detected' : 'detected'}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-1">
+                Outliers flagged with Z-score &gt; 2.5 relative to category historical spending
+              </p>
+            </div>
+            {anomalies.length > 0 && (
+              <span className="text-xs text-slate-400">
+                Sorted by statistical deviation
+              </span>
+            )}
+          </div>
+
+          {anomalies.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-slate-100 text-slate-400 font-medium">
+                    <th className="pb-2 pl-1">Transaction</th>
+                    <th className="pb-2">Category</th>
+                    <th className="pb-2">Date</th>
+                    <th className="pb-2 text-right">Amount</th>
+                    <th className="pb-2 text-right pr-1">Deviation</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {anomalies.map((a: AnomalyDetection, idx: number) => {
+                    const formattedDate = a.date ? new Date(a.date).toLocaleDateString('en-IN', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric'
+                    }) : 'N/A';
+
+                    return (
+                      <tr key={a.transactionId || `anomaly-${idx}`} className="hover:bg-slate-50/60 transition-colors">
+                        <td className="py-2.5 pl-1 font-medium text-slate-800 max-w-[200px] truncate">
+                          {a.name}
+                        </td>
+                        <td className="py-2.5 text-slate-600">
+                          <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[11px] font-medium">
+                            {a.category}
+                          </span>
+                        </td>
+                        <td className="py-2.5 text-slate-500">
+                          {formattedDate}
+                        </td>
+                        <td className="py-2.5 text-right font-semibold text-rose-600">
+                          {formatAmount(Math.abs(a.amount))}
+                        </td>
+                        <td className="py-2.5 text-right pr-1 font-mono text-[11px] text-amber-700 font-medium">
+                          +{a.zScore.toFixed(1)}σ
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-8 text-center bg-slate-50/50 rounded-lg border border-dashed border-slate-200">
+              <ShieldCheck className="h-8 w-8 text-emerald-500 mb-2" />
+              <p className="text-sm font-medium text-slate-700">No spending anomalies detected</p>
+              <p className="text-xs text-slate-400 mt-0.5">
+                All transactions in this timeframe fall within expected standard deviations for their categories.
+              </p>
+            </div>
+          )}
         </div>
       </div>
   )

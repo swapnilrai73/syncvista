@@ -211,8 +211,8 @@ const TransactionHistoryClient = ({
           </div>
         </div>
 
-        {/* View Toggle */}
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+        {/* View Toggle & Filters */}
+        <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between">
           <Button
             onClick={() => {
               const nextState = !showAnalysis
@@ -222,10 +222,61 @@ const TransactionHistoryClient = ({
               const queryDelimiter = selectedAccountId ? '&' : '?'
               router.push(nextState ? `${baseUrl}${queryDelimiter}view=analysis` : baseUrl)
             }}
-            className="flex items-center gap-2 rounded-lg border-2 border-[#1570EF] bg-white px-4 py-2 font-semibold text-[#1570EF] hover:bg-blue-50 transition-all shadow-xs"
+            className="flex items-center gap-2 rounded-lg border-2 border-[#1570EF] bg-white px-4 py-2 font-semibold text-[#1570EF] hover:bg-blue-50 transition-all shadow-xs shrink-0"
           >
             {showAnalysis ? 'Show Transactions' : 'Show Financial Analysis'}
           </Button>
+
+          {!showAnalysis && (
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              <div className="relative flex-1 sm:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                <Input
+                  type="text"
+                  placeholder="Search by name or channel..."
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value)
+                    setPage(1)
+                  }}
+                  className="pl-9 h-10 bg-white border-gray-200 text-sm"
+                />
+              </div>
+
+              <Select
+                value={selectedCategory}
+                onValueChange={(val) => {
+                  setSelectedCategory(val)
+                  setPage(1)
+                }}
+              >
+                <SelectTrigger className="w-full sm:w-48 h-10 bg-white border-gray-200 text-sm">
+                  <SelectValue placeholder="All Categories" />
+                </SelectTrigger>
+                <SelectContent className="bg-white border-gray-200">
+                  {CATEGORIES.map((cat) => (
+                    <SelectItem key={cat} value={cat}>
+                      {cat}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {(searchQuery || selectedCategory !== 'All Categories') && (
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setSearchQuery('')
+                    setSelectedCategory('All Categories')
+                    setPage(1)
+                  }}
+                  className="h-10 text-sm text-gray-500 hover:text-gray-900"
+                >
+                  Reset
+                </Button>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Dynamic Analysis Section */}
@@ -245,8 +296,27 @@ const TransactionHistoryClient = ({
               )}
             </>
           ) : (
-            <div className="text-center py-12 text-gray-500">
-              <p className="text-16 font-medium">No transactions found</p>
+            <div className="text-center py-12 text-gray-500 bg-white rounded-xl border border-gray-100">
+              <p className="text-16 font-medium text-gray-700">No transactions found</p>
+              {(searchQuery || selectedCategory !== 'All Categories') ? (
+                <div className="mt-2">
+                  <p className="text-sm text-gray-400">Try adjusting your search query or category filter.</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSearchQuery('')
+                      setSelectedCategory('All Categories')
+                      setPage(1)
+                    }}
+                    className="mt-3"
+                  >
+                    Reset Filters
+                  </Button>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-400 mt-1">There are no transactions recorded for this account.</p>
+              )}
             </div>
           )}
         </section>

@@ -39,13 +39,12 @@ const TransactionsTable = ({ transactions }: TransactionTableProps) => {
       <TableBody>
         {transactions.map((t: Transaction, index: number) => {
           const status = getTransactionStatus(new Date(t.date))
-          const amount = formatAmount(t.amount)
-
-          const isDebit = t.type === 'debit';
-          const isCredit = t.type === 'credit';
+          const isDebit = t.type === 'debit' || t.amount < 0;
+          const isCredit = t.type === 'credit' || t.amount > 0;
+          const formattedAmount = formatAmount(Math.abs(t.amount));
 
           return (
-            <TableRow key={t.id ? `${t.id}-${index}` : `txn-${index}`} className={`${isDebit || amount[0] === '-' ? 'bg-[#FFFBFA]' : 'bg-[#F6FEF9]'} !over:bg-none !border-b-DEFAULT`}>
+            <TableRow key={t.id ? `${t.id}-${index}` : `txn-${index}`} className="border-b transition-colors hover:bg-muted/50">
               <TableCell className="max-w-[250px] pl-2 pr-10">
                 <div className="flex items-center gap-3">
                   <h1 className="text-14 truncate font-semibold text-[#344054]">
@@ -55,11 +54,11 @@ const TransactionsTable = ({ transactions }: TransactionTableProps) => {
               </TableCell>
 
               <TableCell className={`pl-2 pr-10 font-semibold ${
-                isDebit || amount[0] === '-' ?
+                isDebit ?
                   'text-[#d92d20]'
                   : 'text-[#039855]'
               }`}>
-                {isDebit ? `-${amount}` : isCredit ? amount : amount}
+                {isDebit ? `-${formattedAmount}` : formattedAmount}
               </TableCell>
 
               <TableCell className="pl-2 pr-10">

@@ -150,7 +150,10 @@ declare interface PaginationProps {
 
 declare interface SetuConnectProps {
   user: User;
-  variant?: "primary" | "ghost";
+  variant?: "primary" | "ghost" | "custom";
+  children?: React.ReactNode;
+  className?: string;
+  buttonClassName?: string;
 }
 
 // declare type User = sdk.Models.Document & {
