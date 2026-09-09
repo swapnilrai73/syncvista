@@ -1,35 +1,13 @@
-import HeaderBox from '@/components/HeaderBox'
-import { getAccount, getAccounts, getAllTransactions } from '@/lib/actions/bank.actions'
-import { getLoggedInUser } from '@/lib/actions/user.actions'
-import TransactionHistoryClient from './TransactionHistoryClient'
+import { redirect } from 'next/navigation'
 
-const TransactionHistory = async ({ searchParams: { id, page } }: SearchParamProps) => {
-  const currentPage = Number(page as string) || 1
-  const loggedIn = await getLoggedInUser()
+const TransactionHistory = async ({ searchParams }: SearchParamProps) => {
+  const params = new URLSearchParams()
+  if (searchParams?.id) params.set('id', String(searchParams.id))
+  if (searchParams?.page) params.set('page', String(searchParams.page))
+  if (searchParams?.view) params.set('view', String(searchParams.view))
 
-  // Execute all independent server requests in parallel
-  const [accounts, allTransactions] = await Promise.all([
-    getAccounts({ userId: loggedIn.$id }),
-    getAllTransactions({ userId: loggedIn.$id }),
-  ])
-
-  const accountsData = accounts?.data || []
-  const bankDocumentId = (id as string) || accountsData[0]?.bankDocumentId
-
-  // Fetch specific account data if needed
-  const account = bankDocumentId 
-    ? await getAccount({ bankDocumentId }) 
-    : null
-
-  return (
-    <TransactionHistoryClient
-      accounts={accountsData}
-      initialAccount={account}
-      initialAccountId={bankDocumentId}
-      currentPage={currentPage}
-      initialAllTransactions={allTransactions}
-    />
-  )
+  const queryString = params.toString() ? `?${params.toString()}` : ''
+  redirect(`/financial-intelligence${queryString}`)
 }
 
 export default TransactionHistory

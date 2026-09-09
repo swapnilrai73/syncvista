@@ -2,11 +2,11 @@
 
 import { useEffect, useState, useMemo } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { Search, Download } from 'lucide-react'
+import { Search, Download, TrendingUp, ReceiptText } from 'lucide-react'
 import HeaderBox from '@/components/HeaderBox'
 import { Pagination } from '@/components/Pagination'
 import TransactionsTable from '@/components/TransactionsTable'
-import { formatAmount } from '@/lib/utils'
+import { formatAmount, cn } from '@/lib/utils'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import {
@@ -38,6 +38,7 @@ interface TransactionHistoryClientProps {
   initialAccountId: string
   currentPage: number
   initialAllTransactions?: Transaction[]
+  investmentSummary?: any
 }
 
 const TransactionHistoryClient = ({ 
@@ -45,7 +46,8 @@ const TransactionHistoryClient = ({
   initialAccount, 
   initialAccountId, 
   currentPage, 
-  initialAllTransactions = [] 
+  initialAllTransactions = [],
+  investmentSummary
 }: TransactionHistoryClientProps) => {
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -55,7 +57,8 @@ const TransactionHistoryClient = ({
   const [page, setPage] = useState(currentPage)
   
   const selectedAccountId = searchParams.get('id') || null
-  const showAnalysis = searchParams.get('view') === 'analysis'
+  const currentView = searchParams.get('view')
+  const isTransactionsView = currentView === 'transactions'
   const rowsPerPage = 10
 
   useEffect(() => {
@@ -131,14 +134,22 @@ const TransactionHistoryClient = ({
 
   const handleAccountChange = (accountId: string) => {
     setPage(1)
-    const viewQuery = showAnalysis ? '&view=analysis' : ''
-    router.push(`/transaction-history?id=${accountId}${viewQuery}`)
+    const viewParam = isTransactionsView ? '&view=transactions' : '&view=intelligence'
+    router.push(`/financial-intelligence?id=${accountId}${viewParam}`)
   }
 
   const handleAllAccounts = () => {
     setPage(1)
-    const viewQuery = showAnalysis ? '?view=analysis' : ''
-    router.push(`/transaction-history${viewQuery}`)
+    const viewParam = isTransactionsView ? '?view=transactions' : '?view=intelligence'
+    router.push(`/financial-intelligence${viewParam}`)
+  }
+
+  const handleViewChange = (newView: 'intelligence' | 'transactions') => {
+    setPage(1)
+    const baseUrl = selectedAccountId 
+      ? `/financial-intelligence?id=${selectedAccountId}&` 
+      : '/financial-intelligence?'
+    router.push(`${baseUrl}view=${newView}`)
   }
 
   const totalPages = Math.ceil(filteredTableTransactions.length / rowsPerPage)
@@ -153,8 +164,8 @@ const TransactionHistoryClient = ({
     <div className="transactions">
       <div className="transactions-header">
         <HeaderBox
-          title="Transaction History"
-          subtext="See your bank details and transactions."
+          title="Financial Intelligence"
+          subtext="Holistic capital health, cash flow velocity, risk intelligence, and growth opportunities."
         />
       </div>
 
@@ -211,23 +222,38 @@ const TransactionHistoryClient = ({
           </div>
         </div>
 
-        {/* View Toggle & Filters */}
+        {/* View Switcher & Filters */}
         <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between">
-          <Button
-            onClick={() => {
-              const nextState = !showAnalysis
-              const baseUrl = selectedAccountId 
-                ? `/transaction-history?id=${selectedAccountId}` 
-                : '/transaction-history'
-              const queryDelimiter = selectedAccountId ? '&' : '?'
-              router.push(nextState ? `${baseUrl}${queryDelimiter}view=analysis` : baseUrl)
-            }}
-            className="flex items-center gap-2 rounded-lg border-2 border-[#1570EF] bg-white px-4 py-2 font-semibold text-[#1570EF] hover:bg-blue-50 transition-all shadow-xs shrink-0"
-          >
-            {showAnalysis ? 'Show Transactions' : 'Show Financial Analysis'}
-          </Button>
+          <div className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 p-1 self-start">
+            <button
+              type="button"
+              onClick={() => handleViewChange('intelligence')}
+              className={cn(
+                "flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all",
+                !isTransactionsView
+                  ? "bg-white text-[#002766] shadow-xs"
+                  : "text-slate-600 hover:text-slate-900"
+              )}
+            >
+              <TrendingUp className="h-4 w-4" />
+              <span>Intelligence Overview</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleViewChange('transactions')}
+              className={cn(
+                "flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all",
+                isTransactionsView
+                  ? "bg-white text-[#002766] shadow-xs"
+                  : "text-slate-600 hover:text-slate-900"
+              )}
+            >
+              <ReceiptText className="h-4 w-4" />
+              <span>Ledger & Transactions</span>
+            </button>
+          </div>
 
-          {!showAnalysis && (
+          {isTransactionsView && (
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
               <div className="relative flex-1 sm:w-64">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
@@ -279,12 +305,13 @@ const TransactionHistoryClient = ({
           )}
         </div>
 
-        {/* Dynamic Analysis Section */}
+        {/* Dynamic Section */}
         <section className="flex w-full flex-col gap-6">
-          {showAnalysis ? (
+          {!isTransactionsView ? (
             <FinancialAnalysis
               transactions={activeTransactions}
               bankBalances={selectedAccountId && currentAccountObj ? [currentAccountObj] : effectiveAccounts}
+              investmentSummary={investmentSummary}
             />
           ) : currentTransactions.length > 0 ? (
             <>

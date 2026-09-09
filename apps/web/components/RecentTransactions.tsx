@@ -23,17 +23,17 @@ const RecentTransactions = ({
       <h2 className="recent-transactions-label">Recent transactions</h2>
       
       <div className="flex items-center gap-3">
-        {/* Show Financial Analysis Button */}
+        {/* Financial Intelligence Button */}
         <Link
-  href={`/transaction-history/?id=${selectedTab}&view=analysis`}
-  className="flex items-center gap-2 rounded-lg border border-[#012053]/20 bg-[#012053]/5 px-3.5 py-2 text-14 font-semibold text-[#012053] transition-all hover:bg-[#012053] hover:text-white"
->
-  <span>Show financial analysis</span>
-</Link>
+          href={`/financial-intelligence/?id=${selectedTab}&view=intelligence`}
+          className="flex items-center gap-2 rounded-lg border border-[#012053]/20 bg-[#012053]/5 px-3.5 py-2 text-14 font-semibold text-[#012053] transition-all hover:bg-[#012053] hover:text-white"
+        >
+          <span>Financial Intelligence</span>
+        </Link>
   
-        {/* Existing View All Link */}
+        {/* View All Transactions Link */}
         <Link
-          href={`/transaction-history/?id=${selectedTab}`}
+          href={`/financial-intelligence/?id=${selectedTab}&view=transactions`}
           className="view-all-btn"
         >
           View all

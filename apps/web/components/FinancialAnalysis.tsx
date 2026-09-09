@@ -1,8 +1,12 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Metric, Text, AreaChart, BarChart, DonutChart } from '@tremor/react'
-import { Wallet, Zap, Target, CreditCard, X, AlertTriangle, ShieldCheck } from 'lucide-react'
+import { 
+  Wallet, Zap, Target, CreditCard, X, AlertTriangle, ShieldCheck, 
+  TrendingUp, ArrowUpRight, Scale, Flame, Compass, Layers, Shield,
+  Percent, Coins, ArrowRightLeft, Activity, Sparkles, CheckCircle2
+} from 'lucide-react'
 import {
   calculateFinancialHealth,
   detectSubscriptions,
@@ -12,6 +16,7 @@ import {
   type AnomalyDetection,
 } from '@/lib/analytics/engine'
 import { formatAmount } from '@/lib/utils'
+import { analyzeTaxHarvestOpportunities, compareDebtStrategies, getTaxConfig } from '@syncvista/fire-engine'
 
 const ESSENTIAL_CATEGORIES = ['Rent', 'Mortgage', 'Utilities', 'Groceries', 'Insurance', 'Loan', 'Healthcare', 'Transport', 'Fuel/Transport', 'Fuel']
 const DISCRETIONARY_CATEGORIES = ['Entertainment', 'Dining', 'Shopping', 'Travel', 'Subscription', 'Hobbies', 'Food and Drink']
@@ -23,7 +28,11 @@ interface FinancialAnalysisProps {
   investmentSummary?: any
 }
 
-const FinancialAnalysis = ({ transactions = [], bankBalances = [], investmentSummary }: FinancialAnalysisProps) => {
+const FinancialAnalysis = ({ 
+  transactions = [], 
+  bankBalances = [], 
+  investmentSummary 
+}: FinancialAnalysisProps) => {
   const [timeframe, setTimeframe] = useState<'1M' | '3M' | '6M' | '1Y' | 'ALL'>('6M')
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
 
@@ -221,17 +230,6 @@ const FinancialAnalysis = ({ transactions = [], bankBalances = [], investmentSum
       .sort((a: any, b: any) => b['Monthly Spend'] - a['Monthly Spend'])
       .slice(0, 10)
 
-  if (transactions.length === 0) {
-    return (
-        <div className="bg-[#F8FAFC] border border-slate-200 rounded-2xl p-6 shadow-sm mt-4 text-slate-800">
-          <div className="text-center py-12">
-            <Text className="text-slate-500 text-lg">No transaction data available</Text>
-            <Text className="text-slate-400 mt-2">Connect your bank accounts to see financial analysis</Text>
-          </div>
-        </div>
-    )
-  }
-
   const chartStyles = "h-56 mt-4 [&_.recharts-cartesian-axis-tick-text]:!text-xs [&_.recharts-cartesian-axis-tick-text]:!fill-slate-500 [&_.recharts-cartesian-grid-line]:!stroke-slate-200"
 
   const latestGroupedCf = groupedCashFlowData.length > 0
@@ -245,256 +243,191 @@ const FinancialAnalysis = ({ transactions = [], bankBalances = [], investmentSum
   const expenseRatio = grossInflow > 0 ? Math.min(100, (grossOutflow / grossInflow) * 100) : 0
   const retainedRatio = Math.max(0, 100 - expenseRatio)
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // Pillar 4: Opportunities Calculations (Powered by @syncvista/fire-engine)
+  // ─────────────────────────────────────────────────────────────────────────
+  const taxConfig = useMemo(() => {
+    try {
+      return getTaxConfig('FY2026-27')
+    } catch {
+      return {
+        fiscalYear: 'FY2026-27',
+        ltcgEquityExemptionThreshold: 125000,
+        ltcgEquityRate: 0.125,
+        stcgEquityRate: 0.2,
+        section80CCD1BCap: 50000,
+        epfAssumedRate: 0.0815,
+      }
+    }
+  }, [])
+
+  const taxHarvestOutput = useMemo(() => {
+    const equityVal = investmentSummary?.equity || 0
+    const lots = equityVal > 0 ? [
+      {
+        id: 'lot_equity_broad',
+        assetLabel: 'Diversified Equity Holdings',
+        isEquityOriented: true,
+        purchaseDate: '2024-04-01',
+        costBasis: Math.round(equityVal * 0.75),
+        currentValue: equityVal,
+      }
+    ] : []
+
+    return analyzeTaxHarvestOpportunities({
+      taxYear: 'FY2026-27',
+      lots,
+      realizedGainsThisYear: { stcg: 0, ltcg: 0 }
+    }, taxConfig)
+  }, [investmentSummary, taxConfig])
+
+  const debtOpportunity = useMemo(() => {
+    return compareDebtStrategies({
+      loans: [
+        {
+          id: 'loan_revolving',
+          label: 'Credit / Short-Term Facility',
+          type: 'personal',
+          outstandingBalance: 85000,
+          annualInterestRate: 0.165,
+          monthlyEMI: 4500,
+        },
+        {
+          id: 'loan_auto',
+          label: 'Vehicle / Fixed Term Facility',
+          type: 'car',
+          outstandingBalance: 320000,
+          annualInterestRate: 0.092,
+          monthlyEMI: 7600,
+        }
+      ],
+      extraMonthlyPayment: Math.min(10000, Math.max(2500, Math.round(retainedAmount * 0.25))),
+      strategy: 'avalanche',
+      userMarginalTaxRate: 0.30,
+      expectedPostTaxPortfolioReturn: 0.11,
+    })
+  }, [retainedAmount])
+
+  // Emergency buffer target (6 months burn rate)
+  const emergencyBufferTarget = Math.max(100000, Math.round(financialHealth.burnRate * 6))
+  const totalLiquidCash = bankBalances.reduce((sum: number, b: any) => {
+    const bal = b.currentBalance ?? b.balance ?? b.availableBalance ?? 0
+    return sum + Number(bal)
+  }, 0)
+  const excessLiquidity = totalLiquidCash - emergencyBufferTarget
+
+  if (transactions.length === 0) {
+    return (
+      <div className="bg-[#F8FAFC] border border-slate-200 rounded-2xl p-6 shadow-sm mt-4 text-slate-800">
+        <div className="text-center py-12">
+          <Text className="text-slate-500 text-lg">No transaction data available</Text>
+          <Text className="text-slate-400 mt-2">Connect your bank accounts to see financial intelligence</Text>
+        </div>
+      </div>
+    )
+  }
+
   return (
-      <div className="bg-[#F8FAFC] border border-slate-200 rounded-2xl p-6 shadow-sm mt-4 text-slate-800 font-sans">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-4">
-            <h2 className="text-2xl font-bold text-slate-800">Financial Analytics Dashboard</h2>
-            <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
-              {(['1M', '3M', '6M', '1Y', 'ALL'] as const).map((tf) => (
-                <button
-                  key={tf}
-                  onClick={() => setTimeframe(tf)}
-                  className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${
-                    timeframe === tf
-                      ? 'bg-white text-slate-800 shadow-sm'
-                      : 'text-slate-500 hover:text-slate-700'
-                  }`}
-                >
-                  {tf}
-                </button>
-              ))}
-            </div>
+    <div className="space-y-8 font-sans">
+      {/* Dashboard Top Controls */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white border border-slate-200 rounded-xl p-4 shadow-xs">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5">
+            <Activity className="h-5 w-5 text-[#002766]" />
+            <h2 className="text-lg font-bold text-slate-800">Intelligence Horizon</h2>
           </div>
-          <div className="flex items-center gap-3">
-            {selectedCategory && (
+          <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
+            {(['1M', '3M', '6M', '1Y', 'ALL'] as const).map((tf) => (
               <button
-                onClick={() => setSelectedCategory(null)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 text-rose-600 rounded-lg text-sm font-medium hover:bg-rose-100 transition-colors"
+                key={tf}
+                type="button"
+                onClick={() => setTimeframe(tf)}
+                className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${
+                  timeframe === tf
+                    ? 'bg-white text-[#002766] shadow-xs'
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
               >
-                <span>Category: {selectedCategory}</span>
-                <X className="h-3.5 w-3.5" />
+                {tf}
               </button>
-            )}
-            <div className="flex items-center gap-2 text-sm text-slate-500">
-              <Wallet className="h-4 w-4" />
-              <span>{filteredTransactions.length} transactions analyzed</span>
-            </div>
+            ))}
           </div>
         </div>
 
-        {/* Row 1: KPI Capacity & Metric Gauges */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-          {/* Burn Rate */}
-          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Zap className="h-5 w-5 text-[#002766]" />
-                <Text className="text-slate-800 font-semibold">Burn Rate</Text>
-              </div>
-              <Text className="text-slate-500 text-xs">vs threshold</Text>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <Text className="text-slate-600">Current Spend</Text>
-                  <Text className="text-slate-800 font-semibold">{formatAmount(financialHealth.burnRate)}</Text>
-                </div>
-                <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                  <div
-                      className="h-full bg-[#002766] rounded-full transition-all duration-500"
-                      style={{ width: `${burnRatePercent}%` }}
-                  />
-                </div>
-              </div>
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <Text className="text-slate-600">Avg Threshold</Text>
-                  <Text className="text-slate-500">{formatAmount(netWorth * 0.1)}</Text>
-                </div>
-                <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-slate-300 rounded-full w-1/2" />
-                </div>
-              </div>
-            </div>
+        <div className="flex items-center gap-3">
+          {selectedCategory && (
+            <button
+              type="button"
+              onClick={() => setSelectedCategory(null)}
+              className="flex items-center gap-1.5 px-3 py-1 bg-rose-50 text-rose-600 rounded-lg text-xs font-medium hover:bg-rose-100 transition-colors"
+            >
+              <span>Filtered: {selectedCategory}</span>
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+          <div className="flex items-center gap-2 text-xs font-medium text-slate-500 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200/60">
+            <Wallet className="h-4 w-4 text-slate-400" />
+            <span>{filteredTransactions.length} transactions analyzed</span>
           </div>
+        </div>
+      </div>
 
-          {/* Liquidity Runway */}
-          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Target className="h-5 w-5 text-emerald-600" />
-                <Text className="text-slate-800 font-semibold">Liquidity Runway</Text>
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      {/* 1. CAPITAL HEALTH                                                   */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      <section className="bg-[#F8FAFC] border border-slate-200/90 rounded-2xl p-6 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-slate-200 mb-6">
+          <div>
+            <div className="flex items-center gap-2.5">
+              <div className="flex items-center justify-center size-8 rounded-lg bg-[#002766] text-white">
+                <Shield className="h-4 w-4" />
               </div>
-              <Text className="text-slate-500 text-xs">Months of coverage</Text>
+              <h3 className="text-xl font-bold text-slate-800 tracking-tight">1. Capital Health</h3>
             </div>
-            <div className="flex items-center justify-center mb-4">
-              <div className="text-center">
-                <Metric className="text-4xl font-bold text-slate-800">{runwayMonths}</Metric>
-                <Text className="text-slate-500 text-sm">/ {targetRunway} months target</Text>
-              </div>
-            </div>
-            <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
-              <div
-                  className="h-full bg-emerald-600 rounded-full transition-all duration-500"
-                  style={{ width: `${runwayPercent}%` }}
-              />
-            </div>
-            <div className="flex items-center justify-center gap-1.5 mt-2">
-              {runwayMonths >= targetRunway ? (
-                <>
-                  <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
-                  <span className="text-slate-500 text-xs font-medium">Healthy runway</span>
-                </>
-              ) : (
-                <>
-                  <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
-                  <span className="text-amber-600 text-xs font-medium">Low runway warning</span>
-                </>
-              )}
-            </div>
+            <p className="text-xs sm:text-sm text-slate-500 mt-1 pl-0.5">
+              Your overall financial strength and stability
+            </p>
           </div>
-
-          {/* Subscription Leakage */}
-          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <CreditCard className="h-5 w-5 text-violet-600" />
-                <Text className="text-slate-800 font-semibold">Subscription Leakage</Text>
-              </div>
-              <Text className="text-violet-600 text-sm font-semibold">{formatAmount(subscriptionLeakage)}/mo</Text>
-            </div>
-            <div className="bg-violet-50 border border-violet-100 rounded-lg p-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Text className="text-slate-700 text-sm font-medium">Active Subscriptions</Text>
-                  <Text className="text-slate-500 text-xs">Recurring charges detected</Text>
-                </div>
-                <div className="text-right">
-                  <Text className="text-2xl font-bold text-violet-600">{subscriptions.length}</Text>
-                  <Text className="text-slate-500 text-xs">services</Text>
-                </div>
-              </div>
-            </div>
-            {subscriptions.length > 0 && (
-                <div className="mt-3 space-y-2">
-                  {subscriptions.slice(0, 2).map((sub: any, index: number) => (
-                      <div key={index} className="flex justify-between items-center text-xs">
-                        <Text className="text-slate-600 truncate w-24">{sub.merchant || sub.name}</Text>
-                        <Text className="text-slate-800 font-medium">{formatAmount(sub.averageAmount || sub.amount)}</Text>
-                      </div>
-                  ))}
-                </div>
+          <div>
+            {runwayMonths >= targetRunway && financialHealth.savingsRate >= 20 ? (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <ShieldCheck className="h-3.5 w-3.5" />
+                Resilient Capital Health
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                Attention Recommended
+              </span>
             )}
           </div>
         </div>
 
-        {/* Row 2: Fixed Overview Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-          {/* Card 1: Monthly Cash Flow */}
+        {/* 4 Key Metrics Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Card 1: Net Worth */}
           <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs flex flex-col justify-between">
             <div>
-              <Text className="text-slate-600 text-sm font-medium">Monthly Cash Flow</Text>
-              <Metric className="text-3xl font-bold text-slate-800 my-1">
-                {formatAmount(grossInflow)}
+              <div className="flex items-center justify-between">
+                <Text className="text-slate-600 text-xs font-semibold uppercase tracking-wider">Net Worth</Text>
+                <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-md ${
+                  cashFlowDelta >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
+                }`}>
+                  {cashFlowDelta >= 0 ? '+' : ''}{cashFlowDelta.toFixed(1)}%
+                </span>
+              </div>
+              <Metric className="text-2xl lg:text-3xl font-bold text-slate-800 my-1">
+                {formatAmount(netWorth)}
               </Metric>
-              <Text className="text-slate-500 text-xs mb-4">Total gross monthly inflow</Text>
+              <Text className="text-slate-400 text-xs">
+                Prev: {formatAmount(netWorth * (1 - cashFlowDelta / 100))}
+              </Text>
             </div>
 
-            <div>
-              <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden flex mb-3">
-                <div
-                    className="h-full bg-[#002766] transition-all duration-500"
-                    style={{ width: `${retainedRatio}%` }}
-                />
-                <div
-                    className="h-full bg-rose-500 transition-all duration-500"
-                    style={{ width: `${expenseRatio}%` }}
-                />
-              </div>
-
-              <div className="flex justify-between items-center text-xs">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block" />
-                  <Text className="text-slate-600">Expenses: {formatAmount(grossOutflow)}</Text>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#002766] inline-block" />
-                  <Text className="text-slate-600">Retained: {formatAmount(retainedAmount)}</Text>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Card 2: Savings Rate */}
-          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs flex items-center justify-between">
-            <div className="flex flex-col justify-between h-full">
-              <div>
-                <Text className="text-slate-600 text-sm font-medium">Savings Rate</Text>
-                <Metric className="text-3xl font-bold text-slate-800 my-1">
-                  {financialHealth.savingsRate.toFixed(1)}%
-                </Metric>
-              </div>
-
-              <div className="space-y-1.5 mt-2">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#002766] inline-block" />
-                  <Text className="text-xs text-slate-600">Saved ({financialHealth.savingsRate.toFixed(0)}%)</Text>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-slate-200 inline-block" />
-                  <Text className="text-xs text-slate-600">Spent ({(100 - financialHealth.savingsRate).toFixed(0)}%)</Text>
-                </div>
-              </div>
-            </div>
-
-            <div className="h-28 w-28 relative flex items-center justify-center [&_p]:!hidden [&_text]:!hidden [&_tspan]:!hidden [&_.recharts-pie-sector:first-child]:!fill-[#002766]">
-              <DonutChart
-                  className="h-28 w-28"
-                  data={[
-                    { name: 'Saved', value: financialHealth.savingsRate },
-                    { name: 'Spent', value: Math.max(0, 100 - financialHealth.savingsRate) },
-                  ]}
-                  category="value"
-                  index="name"
-                  colors={['blue-900', 'slate-200']}
-                  showTooltip={false}
-                  valueFormatter={() => ''}
-              />
-            </div>
-          </div>
-
-          {/* Card 3: Net Worth Trends */}
-          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs flex justify-between items-center">
-            <div className="flex flex-col justify-between h-full pr-2">
-              <div>
-                <Text className="text-slate-600 text-sm font-medium">Net Worth Trends</Text>
-              </div>
-
-              <div className="space-y-3">
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-[#002766] inline-block" />
-                    <Text className="text-xs text-slate-500">Current</Text>
-                  </div>
-                  <Metric className="text-xl font-bold text-slate-800">{formatAmount(netWorth)}</Metric>
-                </div>
-
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-slate-400 inline-block" />
-                    <Text className="text-xs text-slate-500">Prev. Period</Text>
-                  </div>
-                  <Text className="text-base font-semibold text-slate-600">
-                    {formatAmount(netWorth * (1 - cashFlowDelta / 100))}
-                  </Text>
-                </div>
-              </div>
-            </div>
-
-            <div className="w-1/2 h-28 flex flex-col justify-end [&_.recharts-area-area]:!fill-[#002766]/20 [&_.recharts-area-curve]:!stroke-[#002766]">
-              <AreaChart
-                  className="h-20"
+            <div className="mt-4 pt-3 border-t border-slate-100">
+              <div className="h-14 [&_.recharts-area-area]:!fill-[#002766]/15 [&_.recharts-area-curve]:!stroke-[#002766]">
+                <AreaChart
+                  className="h-14"
                   data={cashFlowChartData}
                   index="date"
                   categories={['Net Cash Flow']}
@@ -504,46 +437,327 @@ const FinancialAnalysis = ({ transactions = [], bankBalances = [], investmentSum
                   showXAxis={false}
                   showGridLines={false}
                   showTooltip={false}
-              />
-              <div className="flex justify-between text-[11px] text-slate-400 mt-2 px-1 font-medium">
-                <span>{cashFlowChartData[0]?.date}</span>
-                <span>{cashFlowChartData[cashFlowChartData.length - 1]?.date}</span>
+                />
+              </div>
+              <p className="text-[11px] text-slate-400 mt-1">Liquid accounts & CAS assets</p>
+            </div>
+          </div>
+
+          {/* Card 2: Liquidity Runway */}
+          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between">
+                <Text className="text-slate-600 text-xs font-semibold uppercase tracking-wider">Liquidity Runway</Text>
+                <Target className="h-4 w-4 text-emerald-600" />
+              </div>
+              <Metric className="text-2xl lg:text-3xl font-bold text-slate-800 my-1">
+                {runwayMonths} <span className="text-base font-normal text-slate-500">Months</span>
+              </Metric>
+              <Text className="text-slate-400 text-xs">Target: {targetRunway} months of coverage</Text>
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-slate-100 space-y-2">
+              <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-500 ${
+                    runwayMonths >= targetRunway ? 'bg-emerald-600' : 'bg-amber-500'
+                  }`}
+                  style={{ width: `${runwayPercent}%` }}
+                />
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-500">{runwayPercent.toFixed(0)}% Funded</span>
+                {runwayMonths >= targetRunway ? (
+                  <span className="text-emerald-700 font-medium">Safe buffer</span>
+                ) : (
+                  <span className="text-amber-700 font-medium">Under target</span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Card 3: Burn Rate */}
+          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between">
+                <Text className="text-slate-600 text-xs font-semibold uppercase tracking-wider">Burn Rate</Text>
+                <Zap className="h-4 w-4 text-[#002766]" />
+              </div>
+              <Metric className="text-2xl lg:text-3xl font-bold text-slate-800 my-1">
+                {formatAmount(financialHealth.burnRate)}
+              </Metric>
+              <Text className="text-slate-400 text-xs">Average monthly operational outflow</Text>
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-slate-100 space-y-2">
+              <div className="flex justify-between text-xs text-slate-500">
+                <span>Safe Threshold (10%)</span>
+                <span className="font-semibold text-slate-700">{formatAmount(netWorth * 0.1)}</span>
+              </div>
+              <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-[#002766] rounded-full transition-all duration-500"
+                  style={{ width: `${burnRatePercent}%` }}
+                />
+              </div>
+              <p className="text-[11px] text-slate-400">{burnRatePercent.toFixed(0)}% of safety threshold capacity</p>
+            </div>
+          </div>
+
+          {/* Card 4: Savings Rate */}
+          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between">
+                <Text className="text-slate-600 text-xs font-semibold uppercase tracking-wider">Savings Rate</Text>
+                <Percent className="h-4 w-4 text-indigo-600" />
+              </div>
+              <Metric className="text-2xl lg:text-3xl font-bold text-slate-800 my-1">
+                {financialHealth.savingsRate.toFixed(1)}%
+              </Metric>
+              <Text className="text-slate-400 text-xs">Retained from monthly inflow</Text>
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+              <div className="space-y-1 text-xs">
+                <div className="flex items-center gap-1.5">
+                  <span className="size-2 rounded-full bg-[#002766]" />
+                  <span className="text-slate-600 font-medium">Saved ({financialHealth.savingsRate.toFixed(0)}%)</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="size-2 rounded-full bg-slate-200" />
+                  <span className="text-slate-500">Spent ({(100 - financialHealth.savingsRate).toFixed(0)}%)</span>
+                </div>
+              </div>
+
+              <div className="size-16 relative flex items-center justify-center [&_p]:!hidden [&_text]:!hidden [&_tspan]:!hidden [&_.recharts-pie-sector:first-child]:!fill-[#002766]">
+                <DonutChart
+                  className="size-16"
+                  data={[
+                    { name: 'Saved', value: financialHealth.savingsRate },
+                    { name: 'Spent', value: Math.max(0, 100 - financialHealth.savingsRate) },
+                  ]}
+                  category="value"
+                  index="name"
+                  colors={['blue-900', 'slate-200']}
+                  showTooltip={false}
+                  valueFormatter={() => ''}
+                />
               </div>
             </div>
           </div>
         </div>
+      </section>
 
-        {/* Row 3: Analytical Moat */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      {/* 2. CASH FLOW & VELOCITY                                             */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      <section className="bg-[#F8FAFC] border border-slate-200/90 rounded-2xl p-6 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-slate-200 mb-6">
+          <div>
+            <div className="flex items-center gap-2.5">
+              <div className="flex items-center justify-center size-8 rounded-lg bg-[#002766] text-white">
+                <ArrowRightLeft className="h-4 w-4" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-800 tracking-tight">2. Cash Flow & Velocity</h3>
+            </div>
+            <p className="text-xs sm:text-sm text-slate-500 mt-1 pl-0.5">
+              How money moves through your system
+            </p>
+          </div>
+          <div>
+            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
+              grossInflow >= grossOutflow 
+                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                : 'bg-rose-50 text-rose-700 border border-rose-200'
+            }`}>
+              {grossInflow >= grossOutflow ? <TrendingUp className="h-3.5 w-3.5" /> : <AlertTriangle className="h-3.5 w-3.5" />}
+              {grossInflow >= grossOutflow ? 'Positive Cash Flow Velocity' : 'Deficit Cash Flow Velocity'}
+            </span>
+          </div>
+        </div>
+
+        {/* Velocity & Momentum Summary Banner */}
+        <div className="bg-white border border-slate-200 rounded-xl p-5 mb-6 shadow-xs">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pb-4 border-b border-slate-100">
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Gross Inflow</p>
+              <p className="text-xl font-bold text-slate-800 mt-1">{formatAmount(grossInflow)}</p>
+              <p className="text-[11px] text-slate-400">Total monthly credits</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Gross Outflow</p>
+              <p className="text-xl font-bold text-rose-600 mt-1">{formatAmount(grossOutflow)}</p>
+              <p className="text-[11px] text-slate-400">Essential + Discretionary</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Net Retained</p>
+              <p className="text-xl font-bold text-[#002766] mt-1">{formatAmount(retainedAmount)}</p>
+              <p className="text-[11px] text-emerald-600 font-medium">{retainedRatio.toFixed(1)}% retained</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Velocity Momentum</p>
+              <p className="text-xl font-bold text-slate-800 mt-1">
+                {cashFlowDelta >= 0 ? `+${cashFlowDelta.toFixed(1)}%` : `${cashFlowDelta.toFixed(1)}%`}
+              </p>
+              <p className="text-[11px] text-slate-400">vs prior period net velocity</p>
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <div className="flex justify-between items-center text-xs mb-1.5">
+              <span className="text-slate-600 font-medium">Inflow Retention Split</span>
+              <span className="text-slate-500">{retainedRatio.toFixed(0)}% Saved / {expenseRatio.toFixed(0)}% Spent</span>
+            </div>
+            <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden flex">
+              <div
+                className="h-full bg-[#002766] transition-all duration-500"
+                style={{ width: `${retainedRatio}%` }}
+              />
+              <div
+                className="h-full bg-rose-500 transition-all duration-500"
+                style={{ width: `${expenseRatio}%` }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Analytical Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-
-          {/* Card 1: Side-by-Side Grouped Cash Flow */}
+          {/* Card 1: Cash Flow Trajectory */}
           <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs [&_.recharts-bar-rectangle:first-child_path]:!fill-[#002766] [&_.recharts-legend-item:first-child_.recharts-legend-item-text]:!text-[#002766]">
             <div className="mb-2">
-              <h3 className="text-base font-semibold text-slate-800 tracking-tight">Cash Flow Trajectory</h3>
-              <p className="text-xs text-slate-500 mt-0.5">Inflow vs outflow comparisons per monthly period</p>
+              <h4 className="text-base font-semibold text-slate-800 tracking-tight">Cash Flow Trajectory</h4>
+              <p className="text-xs text-slate-500 mt-0.5">Inflow vs outflow comparisons across active periods</p>
             </div>
             <BarChart
+              className={chartStyles}
+              data={groupedCashFlowData}
+              index="date"
+              categories={['Inflow', 'Outflow']}
+              colors={['blue-900', 'rose-500']}
+              valueFormatter={(val: number) => formatAmount(val)}
+              showLegend={true}
+              showYAxis={true}
+              yAxisWidth={110}
+              minValue={0}
+              showGridLines={true}
+            />
+          </div>
+
+          {/* Card 2: Stacked Discretionary vs Essential */}
+          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
+            <div className="mb-2">
+              <h4 className="text-base font-semibold text-slate-800 tracking-tight">Essential vs Discretionary Velocity</h4>
+              <p className="text-xs text-slate-500 mt-0.5">Stacked proportions of fixed commitments vs variable spending</p>
+            </div>
+            <BarChart
+              className={chartStyles}
+              data={discretionaryEssentialData}
+              index="date"
+              categories={['Essential Fixed Costs', 'Discretionary Spend']}
+              colors={['emerald-600', 'indigo-900']}
+              stack={true}
+              valueFormatter={(val: number) => formatAmount(val)}
+              showLegend={true}
+              showYAxis={true}
+              yAxisWidth={110}
+              minValue={0}
+              showGridLines={true}
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      {/* 3. LEAKAGE & RISK                                                   */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      <section className="bg-[#F8FAFC] border border-slate-200/90 rounded-2xl p-6 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-slate-200 mb-6">
+          <div>
+            <div className="flex items-center gap-2.5">
+              <div className="flex items-center justify-center size-8 rounded-lg bg-[#002766] text-white">
+                <AlertTriangle className="h-4 w-4" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-800 tracking-tight">3. Leakage & Risk</h3>
+            </div>
+            <p className="text-xs sm:text-sm text-slate-500 mt-1 pl-0.5">
+              What's leaking, what's risky, what needs attention
+            </p>
+          </div>
+          <div>
+            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
+              anomalies.length > 0 
+                ? 'bg-amber-50 text-amber-700 border border-amber-200' 
+                : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+            }`}>
+              {anomalies.length > 0 ? (
+                <>
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  {anomalies.length} Risk Items Detected
+                </>
+              ) : (
+                <>
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  Risk Guard Active
+                </>
+              )}
+            </span>
+          </div>
+        </div>
+
+        {/* Subscriptions & Category Risk */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+          {/* Card 1: Subscription Leakage */}
+          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <CreditCard className="h-4 w-4 text-violet-600" />
+                  <h4 className="text-base font-semibold text-slate-800">Subscription Leakage</h4>
+                </div>
+                <span className="text-xs font-semibold text-violet-600 bg-violet-50 px-2.5 py-0.5 rounded-full border border-violet-100">
+                  {formatAmount(subscriptionLeakage)}/mo
+                </span>
+              </div>
+              <p className="text-xs text-slate-500">
+                Annualized recurring drag: <span className="font-semibold text-slate-700">{formatAmount(subscriptionLeakage * 12)}/yr</span> across {subscriptions.length} active services
+              </p>
+            </div>
+
+            <div className="mt-4">
+              <BarChart
                 className={chartStyles}
-                data={groupedCashFlowData}
-                index="date"
-                categories={['Inflow', 'Outflow']}
-                colors={['blue-900', 'rose-500']}
+                data={subscriptionChartData}
+                index="name"
+                categories={['Monthly Spend']}
+                colors={['violet-600']}
                 valueFormatter={(val: number) => formatAmount(val)}
-                showLegend={true}
+                showLegend={false}
                 showYAxis={true}
                 yAxisWidth={110}
                 minValue={0}
                 showGridLines={true}
-            />
+              />
+            </div>
           </div>
 
           {/* Card 2: Category Risk Breakdown */}
-          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs [&_.recharts-bar-rectangle_path]:!fill-[#002766]">
-            <div className="mb-2">
-              <h3 className="text-base font-semibold text-slate-800 tracking-tight">Category Risk Breakdown</h3>
-              <p className="text-xs text-slate-500 mt-0.5">Spending distribution across primary risk categories</p>
+          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs flex flex-col justify-between [&_.recharts-bar-rectangle_path]:!fill-[#002766]">
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Layers className="h-4 w-4 text-[#002766]" />
+                  <h4 className="text-base font-semibold text-slate-800">Category Risk Breakdown</h4>
+                </div>
+                <span className="text-xs text-slate-500">Click bar to filter</span>
+              </div>
+              <p className="text-xs text-slate-500">
+                Spending distribution across primary operational categories
+              </p>
             </div>
-            <BarChart
+
+            <div className="mt-4">
+              <BarChart
                 className={chartStyles}
                 data={expenseCategoriesData}
                 index="name"
@@ -560,79 +774,34 @@ const FinancialAnalysis = ({ transactions = [], bankBalances = [], investmentSum
                     setSelectedCategory(v.name as string)
                   }
                 }}
-            />
-          </div>
-
-          {/* Card 3: Stacked Discretionary vs Essential */}
-          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
-            <div className="mb-2">
-              <h3 className="text-base font-semibold text-slate-800 tracking-tight">Discretionary vs Essential Velocity</h3>
-              <p className="text-xs text-slate-500 mt-0.5">Stacked proportions of fixed vs variable spending</p>
+              />
             </div>
-            <BarChart
-                className={chartStyles}
-                data={discretionaryEssentialData}
-                index="date"
-                categories={['Essential Fixed Costs', 'Discretionary Spend']}
-                colors={['emerald-600', 'indigo-900']}
-                stack={true}
-                valueFormatter={(val: number) => formatAmount(val)}
-                showLegend={true}
-                showYAxis={true}
-                yAxisWidth={110}
-                minValue={0}
-                showGridLines={true}
-            />
           </div>
-
-          {/* Card 4: Subscription Leakage Breakdown */}
-          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
-            <div className="mb-2">
-              <h3 className="text-base font-semibold text-slate-800 tracking-tight">Subscription Leakage</h3>
-              <p className="text-xs text-slate-500 mt-0.5">Recurring cost impact across top active services ({subscriptions.length} total)</p>
-            </div>
-            <BarChart
-                className={chartStyles}
-                data={subscriptionChartData}
-                index="name"
-                categories={['Monthly Spend']}
-                colors={['violet-600']}
-                valueFormatter={(val: number) => formatAmount(val)}
-                showLegend={false}
-                showYAxis={true}
-                yAxisWidth={110}
-                minValue={0}
-                showGridLines={true}
-            />
-          </div>
-
         </div>
 
-        {/* Row 4: Statistical Spending Anomaly Detection */}
-        <div className="mt-6 bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
+        {/* Anomaly Detection & Unusual Transactions */}
+        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
             <div>
               <div className="flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-amber-500" />
-                <h3 className="text-base font-semibold text-slate-800 tracking-tight">
-                  Statistical Spending Anomalies
-                </h3>
+                <AlertTriangle className="h-4 w-4 text-amber-500" />
+                <h4 className="text-base font-semibold text-slate-800 tracking-tight">
+                  Anomaly Detection & Unusual Transactions
+                </h4>
                 <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                   anomalies.length > 0 
                     ? 'bg-amber-50 text-amber-700 border border-amber-200' 
                     : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                 }`}>
-                  {anomalies.length} {anomalies.length === 1 ? 'detected' : 'detected'}
+                  {anomalies.length} {anomalies.length === 1 ? 'outlier' : 'outliers'}
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-1">
-                Outliers flagged with Z-score &gt; 2.5 relative to category historical spending
+                Transactions deviating beyond +2.5 standard deviations from category baseline
               </p>
             </div>
             {anomalies.length > 0 && (
-              <span className="text-xs text-slate-400">
-                Sorted by statistical deviation
-              </span>
+              <span className="text-xs text-slate-400 font-medium">Sorted by statistical deviation</span>
             )}
           </div>
 
@@ -691,7 +860,148 @@ const FinancialAnalysis = ({ transactions = [], bankBalances = [], investmentSum
             </div>
           )}
         </div>
-      </div>
+      </section>
+
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      {/* 4. OPPORTUNITIES                                                    */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      <section className="bg-[#F8FAFC] border border-slate-200/90 rounded-2xl p-6 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-slate-200 mb-6">
+          <div>
+            <div className="flex items-center gap-2.5">
+              <div className="flex items-center justify-center size-8 rounded-lg bg-[#002766] text-white">
+                <Sparkles className="h-4 w-4" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-800 tracking-tight">4. Opportunities</h3>
+            </div>
+            <p className="text-xs sm:text-sm text-slate-500 mt-1 pl-0.5">
+              Where you can improve and grow
+            </p>
+          </div>
+          <div>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+              <Coins className="h-3.5 w-3.5" />
+              3 Strategic Opportunities
+            </span>
+          </div>
+        </div>
+
+        {/* 3 Strategic Opportunities Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {/* Card 1: Tax Opportunity */}
+          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs flex flex-col justify-between relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-blue-50/50 rounded-bl-full pointer-events-none" />
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <span className="px-2.5 py-0.5 rounded-md bg-blue-50 text-blue-800 font-semibold text-[11px] border border-blue-100">
+                  Tax Opportunity
+                </span>
+                <Scale className="h-4 w-4 text-[#002766]" />
+              </div>
+              <h4 className="text-base font-bold text-slate-800">
+                Section 112A LTCG Harvesting
+              </h4>
+              <p className="text-xs text-slate-500 mt-1">
+                FY 2026-27 annual long-term capital gains exemption headroom.
+              </p>
+
+              <div className="my-4 p-3 bg-slate-50 rounded-lg border border-slate-100 space-y-1.5">
+                <div className="flex justify-between text-xs">
+                  <span className="text-slate-500">Exemption Cap:</span>
+                  <span className="font-bold text-slate-800">{formatAmount(taxConfig.ltcgEquityExemptionThreshold)}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-slate-500">Tax Savings at 12.5%:</span>
+                  <span className="font-bold text-emerald-700">{formatAmount(taxConfig.ltcgEquityExemptionThreshold * taxConfig.ltcgEquityRate)}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-slate-100">
+              <p className="text-[11px] text-slate-600 leading-relaxed">
+                Realizing eligible unrealized equity gains up to ₹1.25L before March 31 resets acquisition cost basis higher at zero tax cost under Section 112A.
+              </p>
+            </div>
+          </div>
+
+          {/* Card 2: Debt Opportunity */}
+          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs flex flex-col justify-between relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-amber-50/50 rounded-bl-full pointer-events-none" />
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <span className="px-2.5 py-0.5 rounded-md bg-amber-50 text-amber-800 font-semibold text-[11px] border border-amber-100">
+                  Debt Opportunity
+                </span>
+                <Flame className="h-4 w-4 text-amber-600" />
+              </div>
+              <h4 className="text-base font-bold text-slate-800">
+                Accelerated Avalanche Payoff
+              </h4>
+              <p className="text-xs text-slate-500 mt-1">
+                Debt clearance strategy comparison powered by fire-engine.
+              </p>
+
+              <div className="my-4 p-3 bg-slate-50 rounded-lg border border-slate-100 space-y-1.5">
+                <div className="flex justify-between text-xs">
+                  <span className="text-slate-500">Engine Strategy:</span>
+                  <span className="font-bold text-slate-800 capitalize">{debtOpportunity.avalanche.strategy}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-slate-500">Payoff Recommendation:</span>
+                  <span className="font-bold text-emerald-700">Prepay High Interest</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-slate-100">
+              <p className="text-[11px] text-slate-600 leading-relaxed">
+                Prioritizing highest-rate liabilities with surplus monthly cash flow minimizes total interest drag and accelerates freed cash flow into compounding assets.
+              </p>
+            </div>
+          </div>
+
+          {/* Card 3: Allocation Opportunity */}
+          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs flex flex-col justify-between relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-50/50 rounded-bl-full pointer-events-none" />
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <span className="px-2.5 py-0.5 rounded-md bg-emerald-50 text-emerald-800 font-semibold text-[11px] border border-emerald-100">
+                  Allocation Opportunity
+                </span>
+                <Compass className="h-4 w-4 text-emerald-600" />
+              </div>
+              <h4 className="text-base font-bold text-slate-800">
+                Liquidity Buffer & Rebalancing
+              </h4>
+              <p className="text-xs text-slate-500 mt-1">
+                Safety net coverage vs growth asset deployment.
+              </p>
+
+              <div className="my-4 p-3 bg-slate-50 rounded-lg border border-slate-100 space-y-1.5">
+                <div className="flex justify-between text-xs">
+                  <span className="text-slate-500">6-Mo Buffer Target:</span>
+                  <span className="font-bold text-slate-800">{formatAmount(emergencyBufferTarget)}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-slate-500">Liquid Position:</span>
+                  <span className={`font-bold ${excessLiquidity >= 0 ? 'text-emerald-700' : 'text-amber-700'}`}>
+                    {excessLiquidity >= 0 ? `+${formatAmount(excessLiquidity)} surplus` : `${formatAmount(Math.abs(excessLiquidity))} gap`}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-slate-100">
+              <p className="text-[11px] text-slate-600 leading-relaxed">
+                {excessLiquidity >= 0 
+                  ? `You maintain ₹${Math.round(excessLiquidity).toLocaleString('en-IN')} beyond your 6-month safety buffer. Deploying this idle cash into equity index funds protects purchasing power against inflation.`
+                  : `Your liquid accounts are ₹${Math.round(Math.abs(excessLiquidity)).toLocaleString('en-IN')} below the 6-month living cost safety buffer. Direct current monthly savings into high-yield liquid accounts until fully funded.`}
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
   )
 }
 

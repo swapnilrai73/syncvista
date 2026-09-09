@@ -33,7 +33,7 @@ const BankCard = ({ account, userName, showBalance = true }: CreditCardProps) =>
   return (
     <div className="flex flex-col">
       <Link 
-        href={`/transaction-history/?id=${account.bankDocumentId}`} 
+        href={`/financial-intelligence/?id=${account.bankDocumentId}`} 
         className="bank-card"
         style={{ background: cardBg }}
       >
