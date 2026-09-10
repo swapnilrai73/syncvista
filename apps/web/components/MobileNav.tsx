@@ -33,18 +33,16 @@ const MobileNav = ({ user }: MobileNavProps) => {
         </SheetTrigger>
         <SheetContent side="left" className="border-r border-slate-800/80 bg-[#03132B] text-white p-6">
           <Link href="/" className="cursor-pointer flex items-center gap-3 px-1 mb-8">
-            <div className="size-10 rounded-xl bg-white/[0.08] border border-white/15 backdrop-blur-xs flex items-center justify-center shadow-xs shrink-0">
-              <Image 
-                src="/icons/logo.webp"
-                width={28}
-                height={28}
-                alt="SyncVista logo"
-                className="size-6 object-contain"
-              />
-            </div>
-            <h1 className="text-[22px] leading-none font-bold tracking-tight text-white font-sans">
+            <Image 
+              src="/icons/logo.webp"
+              width={34}
+              height={34}
+              alt="SyncVista logo"
+              className="size-8 object-contain shrink-0"
+            />
+            <h1 className="text-[24px] leading-none font-bold tracking-tight text-white font-sans">
               <span className="font-extrabold">Sync</span>
-              <span className="font-normal text-slate-300">Vista</span>
+              <span className="font-normal text-slate-200">Vista</span>
             </h1>
           </Link>
           <div className="mobilenav-sheet">

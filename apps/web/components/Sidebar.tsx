@@ -38,22 +38,19 @@ const Sidebar = ({ user }: SiderbarProps) => {
           href="/" 
           prefetch={true}
           onClick={(e) => handleNavigation('/', e)}
-          className="mb-8 cursor-pointer flex items-center gap-3 px-1 group"
+          className="mb-10 cursor-pointer flex items-center gap-3"
         >
-          {/* Frosted contrast plate so the rhombus logo diamond never merges into dark navy */}
-          <div className="size-11 sm:size-12 rounded-xl bg-white/[0.08] border border-white/15 backdrop-blur-xs flex items-center justify-center shadow-xs transition-all group-hover:bg-white/[0.12] group-hover:border-white/25 shrink-0">
-            <Image 
-              src="/icons/logo.webp"
-              width={32}
-              height={32}
-              alt="SyncVista logo"
-              className="size-7 sm:size-8 object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]"
-              priority
-            />
-          </div>
-          <h1 className="text-[26px] leading-none font-bold tracking-tight text-white max-xl:hidden font-sans">
+          <Image 
+            src="/icons/logo.webp"
+            width={48}
+            height={48}
+            alt="SyncVista logo"
+            className="size-12 object-contain max-xl:size-10 shrink-0"
+            priority
+          />
+          <h1 className="text-[28px] leading-none font-bold tracking-tight text-white max-xl:hidden font-sans">
             <span className="font-extrabold">Sync</span>
-            <span className="font-normal text-slate-300">Vista</span>
+            <span className="font-normal text-slate-200">Vista</span>
           </h1>
         </Link>
 

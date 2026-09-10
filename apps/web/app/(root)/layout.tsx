@@ -19,10 +19,8 @@ export default async function RootLayout({
 
       <div className="flex size-full flex-col overflow-y-auto bg-[#DDE7F1]">
         <div className="root-layout bg-[#03132B] border-b border-slate-800/80 px-4 py-3 flex items-center justify-between md:hidden">
-          <div className="flex items-center gap-2">
-            <div className="p-1 rounded-lg bg-white/10 border border-white/15 backdrop-blur-xs flex items-center justify-center">
-              <Image src="/icons/logo.webp" width={26} height={26} alt="logo" className="size-6 object-contain" />
-            </div>
+          <div className="flex items-center gap-2.5">
+            <Image src="/icons/logo.webp" width={30} height={30} alt="SyncVista logo" className="size-7 object-contain" />
             <span className="font-sans font-extrabold text-white text-lg tracking-tight">Sync<span className="font-normal text-slate-300">Vista</span></span>
           </div>
           <div>

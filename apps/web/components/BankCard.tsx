@@ -9,7 +9,7 @@ interface BankAccent {
   badgeBg: string
   badgeText: string
   badgeBorder: string
-  radialTint: string
+  atmosphericTint: string
 }
 
 // Extract existing bank-specific brand colors as atmospheric glass tints
@@ -23,7 +23,7 @@ const getBankAccent = (bankName: string = ''): BankAccent => {
       badgeBg: 'bg-blue-50/80',
       badgeText: 'text-[#004B87]',
       badgeBorder: 'border-blue-200/70',
-      radialTint: 'radial-gradient(circle at 95% 10%, rgba(0, 75, 135, 0.16) 0%, rgba(1, 32, 83, 0.05) 45%, transparent 70%)',
+      atmosphericTint: 'radial-gradient(ellipse 95% 65% at 50% -10%, rgba(0, 75, 135, 0.18) 0%, rgba(0, 75, 135, 0.06) 55%, transparent 85%), linear-gradient(180deg, rgba(0, 75, 135, 0.08) 0%, transparent 45%)',
     }
   } 
   if (name.includes('icici')) {
@@ -33,7 +33,7 @@ const getBankAccent = (bankName: string = ''): BankAccent => {
       badgeBg: 'bg-orange-50/80',
       badgeText: 'text-[#C8490E]',
       badgeBorder: 'border-orange-200/70',
-      radialTint: 'radial-gradient(circle at 95% 10%, rgba(242, 101, 34, 0.16) 0%, rgba(227, 82, 5, 0.05) 45%, transparent 70%)',
+      atmosphericTint: 'radial-gradient(ellipse 95% 65% at 50% -10%, rgba(242, 101, 34, 0.18) 0%, rgba(242, 101, 34, 0.06) 55%, transparent 85%), linear-gradient(180deg, rgba(242, 101, 34, 0.08) 0%, transparent 45%)',
     }
   } 
   if (name.includes('axis')) {
@@ -43,7 +43,7 @@ const getBankAccent = (bankName: string = ''): BankAccent => {
       badgeBg: 'bg-rose-50/80',
       badgeText: 'text-[#860532]',
       badgeBorder: 'border-rose-200/70',
-      radialTint: 'radial-gradient(circle at 95% 10%, rgba(134, 5, 50, 0.16) 0%, rgba(88, 0, 31, 0.05) 45%, transparent 70%)',
+      atmosphericTint: 'radial-gradient(ellipse 95% 65% at 50% -10%, rgba(134, 5, 50, 0.18) 0%, rgba(134, 5, 50, 0.06) 55%, transparent 85%), linear-gradient(180deg, rgba(134, 5, 50, 0.08) 0%, transparent 45%)',
     }
   } 
   if (name.includes('sbi') || name.includes('state bank')) {
@@ -53,7 +53,7 @@ const getBankAccent = (bankName: string = ''): BankAccent => {
       badgeBg: 'bg-sky-50/80',
       badgeText: 'text-[#006A9C]',
       badgeBorder: 'border-sky-200/70',
-      radialTint: 'radial-gradient(circle at 95% 10%, rgba(0, 128, 198, 0.16) 0%, rgba(0, 51, 102, 0.05) 45%, transparent 70%)',
+      atmosphericTint: 'radial-gradient(ellipse 95% 65% at 50% -10%, rgba(0, 128, 198, 0.18) 0%, rgba(0, 128, 198, 0.06) 55%, transparent 85%), linear-gradient(180deg, rgba(0, 128, 198, 0.08) 0%, transparent 45%)',
     }
   }
 
@@ -62,7 +62,7 @@ const getBankAccent = (bankName: string = ''): BankAccent => {
     badgeBg: 'bg-slate-100',
     badgeText: 'text-[#002766]',
     badgeBorder: 'border-slate-200',
-    radialTint: 'radial-gradient(circle at 95% 10%, rgba(0, 39, 102, 0.14) 0%, transparent 65%)',
+    atmosphericTint: 'radial-gradient(ellipse 95% 65% at 50% -10%, rgba(0, 39, 102, 0.15) 0%, rgba(0, 39, 102, 0.05) 55%, transparent 85%), linear-gradient(180deg, rgba(0, 39, 102, 0.06) 0%, transparent 45%)',
   }
 }
 
@@ -101,18 +101,12 @@ const BankCard = ({ account, userName, showBalance = true }: CreditCardProps) =>
     <div className="flex flex-col gap-2 w-full max-w-[340px]">
       <Link 
         href={`/financial-intelligence/?id=${account.bankDocumentId || account.id}`} 
-        className="group relative overflow-hidden rounded-2xl border border-slate-200/90 p-5 shadow-xs backdrop-blur-md transition-all duration-200 hover:border-slate-300 hover:shadow-md flex flex-col justify-between min-h-[190px] w-full"
+        className="group relative overflow-hidden rounded-2xl border border-white/80 bg-white/80 p-5 shadow-[0_12px_28px_-6px_rgba(0,39,102,0.08),0_3px_8px_-1px_rgba(0,0,0,0.04)] backdrop-blur-md transition-all duration-200 hover:-translate-y-0.5 hover:border-white hover:shadow-[0_16px_32px_-6px_rgba(0,39,102,0.12),0_4px_12px_-1px_rgba(0,0,0,0.05)] flex flex-col justify-between min-h-[190px] w-full"
         style={{ 
-          background: `linear-gradient(135deg, rgba(255, 255, 255, 0.94) 0%, rgba(255, 255, 255, 0.84) 100%), ${accent.radialTint}`,
-          boxShadow: 'inset 0 1px 1px rgba(255, 255, 255, 0.9), 0 2px 10px rgba(0, 0, 0, 0.04)'
+          background: `${accent.atmosphericTint}, linear-gradient(135deg, rgba(255, 255, 255, 0.88) 0%, rgba(255, 255, 255, 0.78) 100%)`,
+          boxShadow: 'inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.95), 0 12px 28px -6px rgba(0, 39, 102, 0.08), 0 3px 8px -1px rgba(0, 0, 0, 0.04)'
         }}
       >
-        {/* Subtle Bank Accent Line at Top */}
-        <div 
-          className="absolute top-0 left-0 right-0 h-[3px] opacity-85"
-          style={{ backgroundColor: accent.primary }}
-        />
-
         {/* Top Header Row: Bank Title & Payment Network */}
         <div className="flex items-start justify-between gap-3 relative z-10">
           <div className="overflow-hidden">
@@ -124,14 +118,18 @@ const BankCard = ({ account, userName, showBalance = true }: CreditCardProps) =>
             </h3>
           </div>
 
-          {/* Payment Network Badge (Crisp Contrast Plate) */}
-          <div className="flex items-center justify-center px-2 py-1 rounded-lg bg-slate-900/90 border border-slate-700/60 shadow-xs shrink-0">
+          {/* Payment Network SVG directly on glass — no dark box container */}
+          <div className="flex items-center justify-end shrink-0 pt-0.5">
             <Image 
               src={network === 'visa' ? '/icons/visa.svg' : '/icons/mastercard.svg'}
-              width={40}
-              height={26}
+              width={46}
+              height={32}
               alt={network === 'visa' ? 'Visa' : 'Mastercard'}
-              className="h-5 w-auto object-contain"
+              className={`h-7 w-auto object-contain transition-transform duration-200 group-hover:scale-105 ${
+                network === 'visa' 
+                  ? '[filter:brightness(0)_saturate(100%)_invert(13%)_sepia(85%)_saturate(3600%)_hue-rotate(224deg)]' 
+                  : ''
+              }`}
             />
           </div>
         </div>
