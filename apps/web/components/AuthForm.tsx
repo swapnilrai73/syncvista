@@ -115,7 +115,10 @@ const AuthForm = ({ type }: { type: string }) => {
               height={34}
               alt="SyncVista logo"
             />
-            <h1 className="text-26 font-ibm-plex-serif font-bold text-black-1">SyncVista</h1>
+            <h1 className="text-[28px] leading-none font-bold tracking-tight text-[#012053] max-xl:hidden font-sans">
+            <span className="font-extrabold">Sync</span>
+            <span className="font-normal">Vista</span>
+          </h1>
           </Link>
 
           <div className="flex flex-col gap-1 md:gap-3">
