@@ -14,12 +14,17 @@ export default async function RootLayout({
   if(!loggedIn) redirect('/sign-in')
 
   return (
-    <main className="flex h-screen w-full font-inter">
+    <main className="flex h-screen w-full font-inter bg-[#DDE7F1]">
       <Sidebar user={loggedIn} />
 
-      <div className="flex size-full flex-col">
-        <div className="root-layout">
-          <Image src="/icons/logo.webp" width={30} height={30} alt="logo" />
+      <div className="flex size-full flex-col overflow-y-auto bg-[#DDE7F1]">
+        <div className="root-layout bg-[#03132B] border-b border-slate-800/80 px-4 py-3 flex items-center justify-between md:hidden">
+          <div className="flex items-center gap-2">
+            <div className="p-1 rounded-lg bg-white/10 border border-white/15 backdrop-blur-xs flex items-center justify-center">
+              <Image src="/icons/logo.webp" width={26} height={26} alt="logo" className="size-6 object-contain" />
+            </div>
+            <span className="font-sans font-extrabold text-white text-lg tracking-tight">Sync<span className="font-normal text-slate-300">Vista</span></span>
+          </div>
           <div>
             <MobileNav user={loggedIn} />
           </div>

@@ -173,11 +173,11 @@ const TransactionHistoryClient = ({
         {/* Navigation Tabs */}
         <div className="w-full overflow-x-auto pb-2">
           <Tabs value={selectedAccountId || 'all'} className="w-full">
-            <TabsList className="inline-flex h-10 items-center justify-start rounded-md bg-muted p-1 w-full overflow-x-auto">
+            <TabsList className="inline-flex h-11 items-center justify-start rounded-xl bg-white/80 border border-slate-200/90 p-1 backdrop-blur-xs shadow-2xs w-auto min-w-full sm:min-w-0">
               <TabsTrigger
                 value="all"
                 onClick={handleAllAccounts}
-                className={!selectedAccountId ? 'bg-background text-foreground' : ''}
+                className={!selectedAccountId ? 'bg-[#002766] text-white shadow-xs font-bold rounded-lg' : 'text-slate-600 font-medium hover:text-slate-900 rounded-lg'}
               >
                 All Accounts
               </TabsTrigger>
@@ -188,7 +188,7 @@ const TransactionHistoryClient = ({
                     key={accId}
                     value={accId}
                     onClick={() => handleAccountChange(accId)}
-                    className={selectedAccountId === accId ? 'bg-background text-foreground' : ''}
+                    className={selectedAccountId === accId ? 'bg-[#002766] text-white shadow-xs font-bold rounded-lg' : 'text-slate-600 font-medium hover:text-slate-900 rounded-lg'}
                   >
                     {account.name}
                   </TabsTrigger>
@@ -198,25 +198,30 @@ const TransactionHistoryClient = ({
           </Tabs>
         </div>
 
-        {/* Big Blue Banner */}
-        <div className="flex flex-col justify-between gap-4 rounded-xl bg-[#002766] p-6 text-white shadow-md md:flex-row md:items-center">
-          <div className="flex flex-col gap-2">
-            <h2 className="text-18 font-bold text-white">
+        {/* Elevated Institutional Midnight Glass Banner */}
+        <div className="flex flex-col justify-between gap-4 rounded-2xl bg-[#03132B] p-6 text-white shadow-xs border border-slate-800/80 md:flex-row md:items-center">
+          <div className="flex flex-col gap-1.5">
+            <span className="text-[11px] font-semibold text-blue-300 uppercase tracking-wider">
+              {selectedAccountId ? (currentAccountObj?.subtype || 'Depository Account') : 'Consolidated System of Record'}
+            </span>
+            <h2 className="text-xl font-bold text-white tracking-tight">
               {selectedAccountId ? (currentAccountObj?.name || 'Account') : 'All Accounts'}
             </h2>
-            <p className="text-14 text-blue-100/80">
+            <p className="text-xs text-slate-400">
               {selectedAccountId 
                 ? (currentAccountObj?.officialName || 'Bank Account') 
-                : `${effectiveAccounts.length} bank accounts`}
+                : `${effectiveAccounts.length} connected banking institutions`}
             </p>
-            <p className="text-14 font-semibold tracking-[1.1px] text-white">
-              {selectedAccountId && currentAccountObj?.mask ? `●●●● ●●●● ●●●● ${currentAccountObj.mask}` : ''}
-            </p>
+            {selectedAccountId && currentAccountObj?.mask && (
+              <p className="text-xs font-mono font-semibold tracking-wider text-slate-300 mt-1">
+                ●●●● ●●●● ●●●● <span className="text-white font-bold">{currentAccountObj.mask}</span>
+              </p>
+            )}
           </div>
           
-          <div className="flex flex-col items-center justify-center gap-1 rounded-lg bg-white/10 px-5 py-3 backdrop-blur-sm border border-white/10 text-white">
-            <p className="text-14 text-blue-100/90">Current balance</p>
-            <p className="text-24 text-center font-bold text-white">
+          <div className="flex flex-col items-center justify-center gap-1 rounded-xl bg-white/[0.08] px-6 py-4 backdrop-blur-md border border-white/15 text-white">
+            <p className="text-xs text-blue-200/90 font-medium">Available Ledger Balance</p>
+            <p className="text-[26px] text-center font-extrabold text-white tabular-nums tracking-tight font-sans">
               {formatAmount(displayCurrentBalance)}
             </p>
           </div>
@@ -224,14 +229,14 @@ const TransactionHistoryClient = ({
 
         {/* View Switcher & Filters */}
         <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between">
-          <div className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 p-1 self-start">
+          <div className="inline-flex items-center gap-1.5 rounded-xl bg-white/80 border border-slate-200/90 p-1.5 backdrop-blur-xs shadow-2xs self-start">
             <button
               type="button"
               onClick={() => handleViewChange('intelligence')}
               className={cn(
-                "flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all",
+                "flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-bold transition-all",
                 !isTransactionsView
-                  ? "bg-white text-[#002766] shadow-xs"
+                  ? "bg-[#002766] text-white shadow-xs"
                   : "text-slate-600 hover:text-slate-900"
               )}
             >
@@ -242,9 +247,9 @@ const TransactionHistoryClient = ({
               type="button"
               onClick={() => handleViewChange('transactions')}
               className={cn(
-                "flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all",
+                "flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-bold transition-all",
                 isTransactionsView
-                  ? "bg-white text-[#002766] shadow-xs"
+                  ? "bg-[#002766] text-white shadow-xs"
                   : "text-slate-600 hover:text-slate-900"
               )}
             >

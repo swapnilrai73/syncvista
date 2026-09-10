@@ -12,7 +12,7 @@ const Home = async () => {
   if (!loggedIn) redirect('/sign-in');
 
   return (
-    <div className="flex-1 w-full bg-[#F8F9FA] overflow-y-auto no-scrollbar min-h-screen">
+    <div className="flex-1 w-full bg-[#DDE7F1] overflow-y-auto no-scrollbar min-h-screen">
       <Suspense fallback={<DashboardSkeleton />}>
         <AsyncDashboardContent user={loggedIn} />
       </Suspense>

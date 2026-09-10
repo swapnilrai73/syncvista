@@ -34,97 +34,119 @@ const Investments = () => {
   }, []);
 
   return (
-    <section className='flex'>
-      <div className="investments">
+    <section className='flex w-full'>
+      <div className="investments w-full max-w-7xl mx-auto space-y-8">
         <HeaderBox 
           title="Investments & Net Worth"
-          subtext="Manage your equity, mutual funds, and portfolio holdings"
+          subtext="Institutional portfolio ledger, verified equity folios, mutual funds, and depository holdings."
         />
 
-        {/* Metric Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white border border-gray-100 shadow-sm rounded-2xl p-5">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="flex-center size-10 rounded-full bg-blue-50">
-                <TrendingUp className="w-5 h-5 text-blue-600" />
+        {/* Metric Cards Grid - Elevated Frosted Glass */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="bg-white/85 border border-slate-200/90 shadow-xs backdrop-blur-md rounded-2xl p-6 min-h-[140px] flex flex-col justify-between">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Portfolio</span>
+              <div className="size-9 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center">
+                <TrendingUp className="size-4 text-[#002766]" />
               </div>
-              <p className="text-sm font-medium text-gray-600">Total Portfolio Value</p>
             </div>
-            <p className="text-24 font-semibold text-gray-900">
+            <p className="text-[24px] sm:text-[26px] font-extrabold text-[#002766] tabular-nums tracking-tight font-sans">
               {isLoading ? '₹0' : `₹${(investmentSummary?.totalPortfolioValue || 0).toLocaleString('en-IN')}`}
             </p>
+            <p className="text-[11px] text-slate-400 mt-2 pt-2 border-t border-slate-100">Across verified CAS folios</p>
           </div>
 
-          <div className="bg-white border border-gray-100 shadow-sm rounded-2xl p-5">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="flex-center size-10 rounded-full bg-green-50">
-                <PieChart className="w-5 h-5 text-green-600" />
+          <div className="bg-white/85 border border-slate-200/90 shadow-xs backdrop-blur-md rounded-2xl p-6 min-h-[140px] flex flex-col justify-between">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Equity Assets</span>
+              <div className="size-9 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center">
+                <PieChart className="size-4 text-emerald-600" />
               </div>
-              <p className="text-sm font-medium text-gray-600">Equity</p>
             </div>
-            <p className="text-24 font-semibold text-gray-900">
+            <p className="text-[24px] sm:text-[26px] font-extrabold text-slate-900 tabular-nums tracking-tight font-sans">
               {isLoading ? '₹0' : `₹${(investmentSummary?.equity || 0).toLocaleString('en-IN')}`}
             </p>
+            <p className="text-[11px] text-slate-400 mt-2 pt-2 border-t border-slate-100">Direct stocks & depository shares</p>
           </div>
 
-          <div className="bg-white border border-gray-100 shadow-sm rounded-2xl p-5">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="flex-center size-10 rounded-full bg-purple-50">
-                <BarChart3 className="w-5 h-5 text-purple-600" />
+          <div className="bg-white/85 border border-slate-200/90 shadow-xs backdrop-blur-md rounded-2xl p-6 min-h-[140px] flex flex-col justify-between">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Mutual Funds</span>
+              <div className="size-9 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center">
+                <BarChart3 className="size-4 text-indigo-600" />
               </div>
-              <p className="text-sm font-medium text-gray-600">Mutual Funds</p>
             </div>
-            <p className="text-24 font-semibold text-gray-900">
+            <p className="text-[24px] sm:text-[26px] font-extrabold text-slate-900 tabular-nums tracking-tight font-sans">
               {isLoading ? '₹0' : `₹${(investmentSummary?.mutualFunds || 0).toLocaleString('en-IN')}`}
             </p>
+            <p className="text-[11px] text-slate-400 mt-2 pt-2 border-t border-slate-100">Active SIPs & folio NAV</p>
           </div>
 
-          <div className="bg-white border border-gray-100 shadow-sm rounded-2xl p-5">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="flex-center size-10 rounded-full bg-orange-50">
-                <Wallet className="w-5 h-5 text-orange-600" />
+          <div className="bg-white/85 border border-slate-200/90 shadow-xs backdrop-blur-md rounded-2xl p-6 min-h-[140px] flex flex-col justify-between">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Debt & Alternate</span>
+              <div className="size-9 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center">
+                <Wallet className="size-4 text-amber-600" />
               </div>
-              <p className="text-sm font-medium text-gray-600">Other Assets / Debt</p>
             </div>
-            <p className="text-24 font-semibold text-gray-900">
+            <p className="text-[24px] sm:text-[26px] font-extrabold text-slate-900 tabular-nums tracking-tight font-sans">
               {isLoading ? '₹0' : `₹${(investmentSummary?.unparsedHoldings || 0).toLocaleString('en-IN')}`}
             </p>
+            <p className="text-[11px] text-slate-400 mt-2 pt-2 border-t border-slate-100">Fixed income, gold & bonds</p>
           </div>
         </div>
 
         {/* CAS Upload Section */}
-        <div className="mt-8">
-          <h2 className="header-2 mb-4">Upload Consolidated Account Statement (CAS)</h2>
+        <div className="space-y-4">
+          <h2 className="text-lg font-bold text-slate-800">
+            Consolidated Account Statement (CAS) Ingestion
+          </h2>
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* Left Column: Upload Component */}
+            {/* Left Column: Modernized Upload Component */}
             <div className="lg:col-span-7">
               <CasUploadCard userId={loggedIn?.$id || ''} />
             </div>
             
             {/* Right Column: CAS Information & Guide */}
             <div className="lg:col-span-5">
-              <div className="bg-white border border-gray-100 shadow-sm rounded-2xl p-6 h-full">
-                <h3 className="text-18 font-semibold text-gray-900 mb-4">How to get your CAS PDF?</h3>
-                <ul className="space-y-3">
-                  <li className="flex items-start gap-3">
-                    <div className="flex-center size-6 rounded-full bg-blue-50 flex-shrink-0 mt-0.5">
-                      <span className="text-12 font-semibold text-blue-600">1</span>
-                    </div>
-                    <p className="text-14 text-gray-600 leading-relaxed">Request CDSL/NSDL Consolidated Account Statement via email from your depository participant.</p>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <div className="flex-center size-6 rounded-full bg-blue-50 flex-shrink-0 mt-0.5">
-                      <span className="text-12 font-semibold text-blue-600">2</span>
-                    </div>
-                    <p className="text-14 text-gray-600 leading-relaxed">Password format: PAN in CAPITAL letters or Date of Birth (DDMMYYYY).</p>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <div className="flex-center size-6 rounded-full bg-blue-50 flex-shrink-0 mt-0.5">
-                      <span className="text-12 font-semibold text-blue-600">3</span>
-                    </div>
-                    <p className="text-14 text-gray-600 leading-relaxed">Syncs equity and mutual fund folios securely without storing passwords.</p>
-                  </li>
-                </ul>
+              <div className="bg-white/85 border border-slate-200/90 shadow-xs backdrop-blur-md rounded-2xl p-6 h-full flex flex-col justify-between">
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
+                    <span className="size-2 rounded-full bg-[#002766]" />
+                    How to get your CAS PDF?
+                  </h3>
+                  <ul className="space-y-4">
+                    <li className="flex items-start gap-3">
+                      <div className="size-6 rounded-lg bg-blue-50 border border-blue-200/60 flex items-center justify-center text-xs font-bold text-[#002766] shrink-0 mt-0.5">
+                        1
+                      </div>
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                        Request CDSL or NSDL Consolidated Account Statement via email from your registered depository participant or CAMS/KFintech.
+                      </p>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <div className="size-6 rounded-lg bg-blue-50 border border-blue-200/60 flex items-center justify-center text-xs font-bold text-[#002766] shrink-0 mt-0.5">
+                        2
+                      </div>
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                        Standard password format: Your PAN in <span className="font-semibold text-slate-800">CAPITAL letters</span> or Date of Birth (<span className="font-mono text-slate-800">DDMMYYYY</span>).
+                      </p>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <div className="size-6 rounded-lg bg-blue-50 border border-blue-200/60 flex items-center justify-center text-xs font-bold text-[#002766] shrink-0 mt-0.5">
+                        3
+                      </div>
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                        Syncs equity lots and mutual fund ISINs deterministically without storing passwords or plain-text statement copies.
+                      </p>
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="mt-6 pt-4 border-t border-slate-200/70 flex items-center justify-between text-[11px] text-slate-500">
+                  <span>Client Side Decryption</span>
+                  <span className="text-emerald-700 font-semibold">Zero Credentials Stored</span>
+                </div>
               </div>
             </div>
           </div>

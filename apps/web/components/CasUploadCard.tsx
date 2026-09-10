@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Upload, FileText, Lock, Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Upload, FileText, Lock, Loader2, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -11,6 +12,7 @@ interface CasUploadCardProps {
 }
 
 const CasUploadCard = ({ userId }: CasUploadCardProps) => {
+  const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
   const [password, setPassword] = useState("");
   const [isDragging, setIsDragging] = useState(false);
@@ -92,10 +94,8 @@ const CasUploadCard = ({ userId }: CasUploadCardProps) => {
         fileInputRef.current.value = "";
       }
       
-      // Refresh the page to show updated data
-      setTimeout(() => {
-        window.location.reload();
-      }, 1500);
+      // Refresh without hard page reload
+      router.refresh();
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "An error occurred";
@@ -106,7 +106,7 @@ const CasUploadCard = ({ userId }: CasUploadCardProps) => {
   };
 
   return (
-    <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+    <div className="bg-white/85 rounded-2xl p-6 shadow-xs border border-slate-200/90 backdrop-blur-md">
       <form onSubmit={handleSubmit}>
         {/* Drag and Drop Area */}
         <div
@@ -115,9 +115,9 @@ const CasUploadCard = ({ userId }: CasUploadCardProps) => {
           onDrop={handleDrop}
           onClick={() => fileInputRef.current?.click()}
           className={`
-            relative border-2 border-dashed rounded-lg py-8 px-4 text-center cursor-pointer transition-all
-            ${isDragging ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"}
-            ${file ? "border-green-500 bg-green-50" : ""}
+            relative border-2 border-dashed rounded-xl py-8 px-4 text-center cursor-pointer transition-all duration-200
+            ${isDragging ? "border-[#002766] bg-blue-50/50 scale-[0.99]" : "border-slate-300/80 bg-slate-50/40 hover:border-slate-400 hover:bg-slate-50/80"}
+            ${file ? "border-emerald-500 bg-emerald-50/40" : ""}
           `}
         >
           <input
@@ -130,34 +130,40 @@ const CasUploadCard = ({ userId }: CasUploadCardProps) => {
           
           {file ? (
             <div className="flex flex-col items-center gap-2">
-              <FileText className="w-12 h-12 text-green-600" />
-              <p className="text-sm font-medium text-gray-700">{file.name}</p>
-              <p className="text-xs text-gray-500">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+              <div className="size-12 rounded-xl bg-emerald-100/80 text-emerald-700 flex items-center justify-center">
+                <FileText className="size-6" />
+              </div>
+              <p className="text-sm font-bold text-slate-800">{file.name}</p>
+              <p className="text-xs text-slate-500 font-mono">{(file.size / 1024 / 1024).toFixed(2)} MB • PDF Attached</p>
             </div>
           ) : (
-            <div className="flex flex-col items-center gap-2">
-              <Upload className="w-12 h-12 text-gray-400" />
-              <p className="text-sm font-medium text-gray-600">
-                Drag & drop your CAS PDF here
-              </p>
-              <p className="text-xs text-gray-400">or click to browse</p>
+            <div className="flex flex-col items-center gap-2.5">
+              <div className="size-12 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-[#002766]">
+                <Upload className="size-6" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-slate-800">
+                  Drag & drop your CAS PDF statement
+                </p>
+                <p className="text-xs text-slate-500 mt-0.5">or click to browse local files</p>
+              </div>
             </div>
           )}
         </div>
 
         {/* Password Field */}
-        <div className="mt-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            CAS Password (PAN / DOB)
+        <div className="mt-5">
+          <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">
+            CAS Encryption Password (PAN / DOB)
           </label>
           <div className="relative">
-            <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
             <Input
               type="password"
-              placeholder="Enter your PAN or date of birth"
+              placeholder="Enter PAN (capital letters) or DOB (DDMMYYYY)"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="pl-10"
+              className="pl-10 h-11 bg-white/90 border-slate-200 text-sm rounded-xl focus-visible:ring-2 focus-visible:ring-[#002766]/30"
               disabled={isUploading}
             />
           </div>
@@ -166,20 +172,20 @@ const CasUploadCard = ({ userId }: CasUploadCardProps) => {
         {/* Submit Button */}
         <Button
           type="submit"
-          className={`w-full mt-4 ${
+          className={`w-full mt-5 h-11 rounded-xl text-sm font-bold transition-all ${
             (!file || !password) 
-              ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
-              : 'bg-bank-gradient hover:opacity-90 text-white'
+              ? 'bg-slate-200 text-slate-400 cursor-not-allowed hover:bg-slate-200' 
+              : 'bg-gradient-to-r from-[#002766] to-[#001A43] hover:from-[#001f52] hover:to-[#001333] text-white shadow-xs'
           }`}
           disabled={isUploading || !file || !password}
         >
           {isUploading ? (
             <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Processing...
+              <Loader2 className="size-4 mr-2 animate-spin" />
+              Decrypting & Ingesting Portfolio...
             </>
           ) : (
-            "Parse & Sync Portfolio"
+            "Parse & Sync Portfolio Holdings"
           )}
         </Button>
       </form>
