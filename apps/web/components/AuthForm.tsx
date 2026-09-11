@@ -199,7 +199,7 @@ const AuthForm = ({ type }: { type: string }) => {
                     }}
                     className="w-full border-slate-300 text-slate-700 hover:bg-slate-50 font-medium py-2.5 rounded-xl text-sm transition-all"
                   >
-                    Demo Account (1-Click Interview Access)
+                    Demo Account (1-Click Access)
                   </Button>
                 )}
               </div>
