@@ -1,4 +1,4 @@
-import { getAccount, getAccounts, getAllTransactions } from '@/lib/actions/bank.actions'
+import { getAccounts, getAllTransactions } from '@/lib/actions/bank.actions'
 import { getLoggedInUser } from '@/lib/actions/user.actions'
 import { getInvestmentSummary } from '@/lib/actions/investment.actions'
 import TransactionHistoryClient from '../transaction-history/TransactionHistoryClient'
@@ -15,17 +15,12 @@ const FinancialIntelligence = async ({ searchParams: { id, page, view } }: Searc
   ])
 
   const accountsData = accounts?.data || []
-  const bankDocumentId = (id as string) || accountsData[0]?.bankDocumentId
-
-  // Fetch specific account data if needed
-  const account = bankDocumentId 
-    ? await getAccount({ bankDocumentId }) 
-    : null
+  const bankDocumentId = (id as string) || accountsData[0]?.bankDocumentId || ""
 
   return (
     <TransactionHistoryClient
       accounts={accountsData}
-      initialAccount={account}
+      initialAccount={null}
       initialAccountId={bankDocumentId}
       currentPage={currentPage}
       initialAllTransactions={allTransactions}

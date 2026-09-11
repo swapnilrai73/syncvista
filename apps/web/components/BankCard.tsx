@@ -101,7 +101,7 @@ const BankCard = ({ account, userName, showBalance = true }: CreditCardProps) =>
     <div className="flex flex-col gap-2 w-full max-w-[340px]">
       <Link 
         href={`/financial-intelligence/?id=${account.bankDocumentId || account.id}`} 
-        className="group relative overflow-hidden rounded-2xl border border-white/80 bg-white/80 p-5 shadow-[0_12px_28px_-6px_rgba(0,39,102,0.08),0_3px_8px_-1px_rgba(0,0,0,0.04)] backdrop-blur-md transition-all duration-200 hover:-translate-y-0.5 hover:border-white hover:shadow-[0_16px_32px_-6px_rgba(0,39,102,0.12),0_4px_12px_-1px_rgba(0,0,0,0.05)] flex flex-col justify-between min-h-[190px] w-full"
+        className="bank-card group relative overflow-hidden rounded-2xl border border-white/80 bg-white/80 p-5 shadow-[0_12px_28px_-6px_rgba(0,39,102,0.08),0_3px_8px_-1px_rgba(0,0,0,0.04)] backdrop-blur-md transition-all duration-200 hover:-translate-y-0.5 hover:border-white hover:shadow-[0_16px_32px_-6px_rgba(0,39,102,0.12),0_4px_12px_-1px_rgba(0,0,0,0.05)] flex flex-col justify-between min-h-[190px] w-full"
         style={{ 
           background: `${accent.atmosphericTint}, linear-gradient(135deg, rgba(255, 255, 255, 0.88) 0%, rgba(255, 255, 255, 0.78) 100%)`,
           boxShadow: 'inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.95), 0 12px 28px -6px rgba(0, 39, 102, 0.08), 0 3px 8px -1px rgba(0, 0, 0, 0.04)'

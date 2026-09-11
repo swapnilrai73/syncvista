@@ -90,26 +90,33 @@ export function calculateFinancialHealth(transactions: Transaction[]): Financial
     };
   }
 
-  // Separate income and expenses
+  // Separate income and expenses deterministically via isCreditTransaction
   const income = transactions
-    .filter((t) => t.type === 'credit' || t.amount > 0)
-    .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+    .filter((t) => isCreditTransaction(t))
+    .reduce((sum, t) => sum + Math.abs(t.amount || 0), 0);
 
   const expenses = transactions
-    .filter((t) => t.type === 'debit' || t.amount < 0)
-    .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+    .filter((t) => !isCreditTransaction(t))
+    .reduce((sum, t) => sum + Math.abs(t.amount || 0), 0);
 
   // Calculate savings rate
-  const savingsRate = income > 0 ? ((income - expenses) / income) * 100 : 0;
+  const savingsRate = income > 0 ? Math.max(0, ((income - expenses) / income) * 100) : 0;
 
   // Calculate burn rate (average monthly expenses)
   const uniqueMonths = new Set(
-    transactions.map((t) => {
-      const date = new Date(t.date);
-      return `${date.getFullYear()}-${date.getMonth()}`;
-    })
+    transactions
+      .map((t) => {
+        let rawDate = (t as any).date || (t as any).createdAt || (t as any).$createdAt;
+        if (rawDate && typeof rawDate.toDate === 'function') {
+          rawDate = rawDate.toDate();
+        }
+        if (!rawDate) return null;
+        const date = new Date(rawDate);
+        return isNaN(date.getTime()) ? null : `${date.getFullYear()}-${date.getMonth()}`;
+      })
+      .filter(Boolean)
   ).size;
-  const burnRate = uniqueMonths > 0 ? expenses / uniqueMonths : 0;
+  const burnRate = uniqueMonths > 0 ? expenses / uniqueMonths : expenses;
 
   // Single Exponential Smoothing forecast (α = 0.3)
   const alpha = 0.3;
@@ -118,9 +125,15 @@ export function calculateFinancialHealth(transactions: Transaction[]): Financial
   // Group transactions by month
   const monthlyData = new Map<string, number>();
   transactions.forEach((t) => {
-    const date = new Date(t.date);
-    const monthKey = `${date.getFullYear()}-${date.getMonth()}`;
-    const amount = t.type === 'debit' || t.amount < 0 ? -Math.abs(t.amount) : Math.abs(t.amount);
+    let rawDate = (t as any).date || (t as any).createdAt || (t as any).$createdAt;
+    if (rawDate && typeof rawDate.toDate === 'function') {
+      rawDate = rawDate.toDate();
+    }
+    if (!rawDate) return;
+    const date = new Date(rawDate);
+    if (isNaN(date.getTime())) return;
+    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    const amount = isCreditTransaction(t) ? Math.abs(t.amount || 0) : -Math.abs(t.amount || 0);
     monthlyData.set(monthKey, (monthlyData.get(monthKey) || 0) + amount);
   });
 
@@ -150,10 +163,11 @@ export function calculateFinancialHealth(transactions: Transaction[]): Financial
   // Calculate top expense categories
   const categoryExpenses = new Map<string, number>();
   transactions
-    .filter((t) => t.type === 'debit' || t.amount < 0)
+    .filter((t) => !isCreditTransaction(t))
     .forEach((t) => {
-      const amount = Math.abs(t.amount);
-      categoryExpenses.set(t.category, (categoryExpenses.get(t.category) || 0) + amount);
+      const category = t.category || 'General';
+      const amount = Math.abs(t.amount || 0);
+      categoryExpenses.set(category, (categoryExpenses.get(category) || 0) + amount);
     });
 
   const sortedCategories = Array.from(categoryExpenses.entries())
@@ -239,60 +253,84 @@ export function detectSubscriptions(transactions: Transaction[]): SubscriptionDe
 }
 
 /**
- * Detect anomalous transactions using Z-score analysis
- * Flags transactions with Z-score > 2.5 relative to category averages
+ * Detect anomalous transactions using robust statistical analysis
+ * - Filters for genuine debit/expense transactions (never flags salary, refunds, or internal transfers)
+ * - Excludes known recurring subscriptions and scheduled bills
+ * - Requires at least 5 transactions in a category for sample variance (N - 1)
+ * - Flags only positive expenditure spikes (Z-score > 2.5) with a ₹500 / 50% materiality floor
  */
 export function detectAnomalies(transactions: Transaction[]): AnomalyDetection[] {
   if (!transactions || transactions.length === 0) {
     return [];
   }
 
-  // Calculate category statistics
-  const categoryStats = new Map<string, { mean: number; stdDev: number; count: number }>();
-  const categoryTransactions = new Map<string, Transaction[]>();
+  // 1. Filter for debit / expense transactions only (exclude credits, refunds, and self-transfers)
+  const debitTransactions = transactions.filter((t) => {
+    if (isCreditTransaction(t)) return false;
+    if (t.senderBankId && t.receiverBankId && t.senderBankId === t.receiverBankId) return false;
+    return true;
+  });
 
-  transactions.forEach((t) => {
-    const category = t.category;
-    const amount = Math.abs(t.amount);
-    
+  if (debitTransactions.length === 0) return [];
+
+  // 2. Identify known recurring subscriptions to avoid flagging regular planned charges
+  const detectedSubs = detectSubscriptions(transactions);
+  const recurringMerchantNames = new Set(
+    detectedSubs.map((s) => s.merchant.toLowerCase().trim())
+  );
+
+  // 3. Group expense transactions by category
+  const categoryTransactions = new Map<string, Transaction[]>();
+  debitTransactions.forEach((t) => {
+    const category = t.category || "General";
     if (!categoryTransactions.has(category)) {
       categoryTransactions.set(category, []);
     }
     categoryTransactions.get(category)!.push(t);
   });
 
-  categoryTransactions.forEach((txs, category) => {
-    const amounts = txs.map((t) => Math.abs(t.amount));
-    const mean = amounts.reduce((sum, a) => sum + a, 0) / amounts.length;
-    const variance = amounts.reduce((sum, a) => sum + Math.pow(a - mean, 2), 0) / amounts.length;
-    const stdDev = Math.sqrt(variance);
-
-    categoryStats.set(category, { mean, stdDev, count: amounts.length });
-  });
-
-  // Detect anomalies
   const anomalies: AnomalyDetection[] = [];
 
-  transactions.forEach((t) => {
-    const stats = categoryStats.get(t.category);
-    if (!stats || stats.count < 3) return; // Need at least 3 transactions for meaningful stats
+  categoryTransactions.forEach((txs, category) => {
+    // Statistical validity constraint: Need at least 5 transactions in a category
+    // for sample standard deviation and Z-score to be statistically justified.
+    if (txs.length < 5) return;
 
-    const amount = Math.abs(t.amount);
-    const zScore = stats.stdDev > 0 ? (amount - stats.mean) / stats.stdDev : 0;
+    const amounts = txs.map((t) => Math.abs(t.amount || 0));
+    const mean = amounts.reduce((sum, a) => sum + a, 0) / amounts.length;
 
-    if (Math.abs(zScore) > 2.5) {
-      anomalies.push({
-        transactionId: t.id,
-        name: t.name,
-        amount: t.amount,
-        category: t.category,
-        zScore,
-        date: t.date,
-      });
-    }
+    // Sample variance (Bessel's correction N - 1)
+    const variance =
+      amounts.reduce((sum, a) => sum + Math.pow(a - mean, 2), 0) / (amounts.length - 1);
+    const stdDev = Math.sqrt(variance);
+
+    // If variance is 0 (all transactions identical), no statistical outlier can exist
+    if (stdDev <= 0) return;
+
+    txs.forEach((t) => {
+      // Exclude known recurring subscriptions
+      const nameLower = (t.name || "").toLowerCase().trim();
+      if (recurringMerchantNames.has(nameLower)) return;
+
+      const amount = Math.abs(t.amount || 0);
+      const zScore = (amount - mean) / stdDev;
+
+      // Positive outlier: Z-score > 2.5
+      // Plus materiality floor: must exceed mean by at least ₹500 and 50%
+      if (zScore > 2.5 && amount >= mean + 500 && amount >= mean * 1.5) {
+        anomalies.push({
+          transactionId: t.id || (t as any).$id || (t as any).transactionId || "",
+          name: t.name,
+          amount: t.amount,
+          category,
+          zScore,
+          date: t.date || (t as any).$createdAt || "",
+        });
+      }
+    });
   });
 
-  return anomalies.sort((a, b) => Math.abs(b.zScore) - Math.abs(a.zScore));
+  return anomalies.sort((a, b) => b.zScore - a.zScore);
 }
 
 /**
@@ -315,9 +353,13 @@ export function analyzeCASPortfolio(casData: any, bankBalances: any[]) {
 }
 
 /**
- * Calculate net worth from Firestore bank balances and investments
+ * Calculate net worth from Firestore bank balances, investments, and optional liabilities
  */
-export function calculateNetWorth(bankBalances: any[] = [], investmentSummary?: any): number {
+export function calculateNetWorth(
+  bankBalances: any[] = [],
+  investmentSummary?: any,
+  liabilities: number = 0
+): number {
   const bankTotal = bankBalances.reduce((sum, acc) => {
     // Firestore fields for account balances
     const bal = acc.currentBalance ?? acc.balance ?? acc.availableBalance ?? 0;
@@ -325,7 +367,7 @@ export function calculateNetWorth(bankBalances: any[] = [], investmentSummary?: 
   }, 0);
 
   const investmentTotal = investmentSummary?.totalPortfolioValue || investmentSummary?.currentValue || 0;
-  return bankTotal + investmentTotal;
+  return Math.max(0, bankTotal + investmentTotal - (liabilities || 0));
 }
 
 /**

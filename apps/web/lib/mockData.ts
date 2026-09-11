@@ -43,6 +43,40 @@ export const MOCK_BANK_ACCOUNTS = [
     institutionId: "icici",
     consentId: "consent_icici_001",
   },
+  {
+    id: "cc_axis_neo",
+    bankDocumentId: "cc_axis_neo",
+    userId: MOCK_USER_ID,
+    accountId: "AXISCC99887766",
+    shareableId: "axis-cc-321",
+    bankName: "Axis Bank",
+    name: "Axis Bank Neo Credit Card",
+    officialName: "Axis Bank Rewards Credit Card",
+    currentBalance: -24500,
+    availableBalance: 175500,
+    mask: "9988",
+    type: "credit",
+    subtype: "credit_card",
+    institutionId: "axis",
+    consentId: "consent_axis_001",
+  },
+  {
+    id: "bank_axis_savings",
+    bankDocumentId: "bank_axis_savings",
+    userId: MOCK_USER_ID,
+    accountId: "AXIS556677889",
+    shareableId: "axis-prime-789",
+    bankName: "Axis Bank",
+    name: "Axis Liberty Savings Account",
+    officialName: "Axis Bank Liberty Digital Savings Account",
+    currentBalance: 88500,
+    availableBalance: 88500,
+    mask: "7788",
+    type: "depository",
+    subtype: "savings",
+    institutionId: "axis",
+    consentId: "consent_axis_002",
+  },
 ];
 
 // Expense Categories
@@ -107,6 +141,7 @@ const createTransaction = (
   receiverBankId: type === "credit" ? bankId : null,
   accountId: bankId,
   bankDocumentId: bankId,
+  bankId,
   pending: false,
   status: "Success",
   channel: paymentChannel,
@@ -187,13 +222,15 @@ export const generateHistoricalTransactions = () => {
       );
     });
 
-    // Discretionary Expenses
+    // Discretionary Expenses across accounts
     const discretionaryExpenses = [
-      { name: "Swiggy Food Delivery", amount: 2400, category: "Dining", day: 12, bankId: "bank_icici_salary" },
-      { name: "Zomato Food Order", amount: 1800, category: "Dining", day: 18, bankId: "bank_icici_salary" },
-      { name: "Amazon Shopping", amount: 5500, category: "Shopping", day: 14, bankId: "bank_hdfc_savings" },
-      { name: "Flipkart Order", amount: 3200, category: "Shopping", day: 22, bankId: "bank_hdfc_savings" },
-      { name: "Movie Tickets", amount: 1200, category: "Entertainment", day: 28, bankId: "bank_icici_salary" },
+      { name: "Swiggy Food Delivery", amount: 2400, category: "Dining", day: 12, bankId: "cc_axis_neo", type: "debit" },
+      { name: "Zomato Food Order", amount: 1800, category: "Dining", day: 18, bankId: "bank_icici_salary", type: "debit" },
+      { name: "Amazon Shopping", amount: 5500, category: "Shopping", day: 14, bankId: "bank_hdfc_savings", type: "debit" },
+      { name: "Flipkart Order", amount: 3200, category: "Shopping", day: 22, bankId: "bank_hdfc_savings", type: "debit" },
+      { name: "Movie Tickets - PVR IMAX", amount: 1200, category: "Entertainment", day: 28, bankId: "cc_axis_neo", type: "debit" },
+      { name: "Mutual Fund SIP - Index 50", amount: 5000, category: "Investment", day: 10, bankId: "bank_axis_savings", type: "debit" },
+      { name: "Quarterly Interest Credit", amount: 450, category: "Income", day: 25, bankId: "bank_axis_savings", type: "credit" },
     ];
 
     discretionaryExpenses.forEach((expense) => {
@@ -203,7 +240,7 @@ export const generateHistoricalTransactions = () => {
               `txn_${transactionCounter++}`,
               expense.name,
               expense.amount,
-              "debit",
+              (expense.type as "credit" | "debit") || "debit",
               expense.category,
               date,
               expense.bankId,

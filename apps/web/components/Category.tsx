@@ -11,7 +11,7 @@ const Category = ({ category }: CategoryProps) => {
 
   return (
     <div className={cn("gap-[18px] flex p-4 rounded-xl", style.bg)}>
-      <figure className={cn("flex-center size-10 rounded-full", style.chipBg)}>
+      <figure className={cn("flex-center size-10 rounded-full", style.circleBg)}>
         <Image
           src="/icons/shopping-bag.svg"
           width={20}

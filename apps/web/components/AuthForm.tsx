@@ -85,13 +85,17 @@ const AuthForm = ({ type }: { type: string }) => {
           setUser(newUser);
         }
 
-        if(type === 'sign-in') {
+        if (type === 'sign-in') {
           const response = await signIn({
             email: data.email,
             password: data.password,
-          })
+          });
 
-          if(response) router.push('/')
+          if (response && typeof response === 'object' && 'error' in response) {
+            setErrorMessage((response as any).error);
+          } else if (response) {
+            router.push('/');
+          }
         }
       } catch (error) {
         console.error('Authentication submit error:', error);
@@ -182,6 +186,22 @@ const AuthForm = ({ type }: { type: string }) => {
                   ) : type === 'sign-in' 
                     ? 'Sign In' : 'Sign Up'}
                 </Button>
+
+                {type === 'sign-in' && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={isLoading}
+                    onClick={() => {
+                      form.setValue('email', 'testuser2@syncvista.com');
+                      form.setValue('password', 'password123');
+                      form.handleSubmit(onSubmit)();
+                    }}
+                    className="w-full border-slate-300 text-slate-700 hover:bg-slate-50 font-medium py-2.5 rounded-xl text-sm transition-all"
+                  >
+                    Demo Account (1-Click Interview Access)
+                  </Button>
+                )}
               </div>
             </form>
           </Form>

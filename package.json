@@ -8,6 +8,7 @@
     "seed": "turbo run seed"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "turbo": "^2.3.0",
     "typescript": "^5.0.0"
   },

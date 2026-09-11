@@ -15,6 +15,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import Footer from "./Footer"
+import SetuConnect from "./SetuConnect"
 
 const MobileNav = ({ user }: MobileNavProps) => {
   const pathname = usePathname();
@@ -88,6 +89,21 @@ const MobileNav = ({ user }: MobileNavProps) => {
                 })}
               </nav>
             </SheetClose>
+
+            <div className="pt-2 pb-4">
+              <SetuConnect
+                user={user}
+                variant="custom"
+                buttonClassName="w-full flex items-center gap-3.5 py-2.5 px-3.5 rounded-xl justify-start text-slate-300 hover:text-white hover:bg-white/[0.06] transition-all border border-dashed border-white/15 cursor-pointer bg-white/[0.02]"
+              >
+                <div className="relative size-5 shrink-0 flex items-center justify-center">
+                  <Image src="/icons/connect-bank.svg" alt="connect bank" width={20} height={20} className="brightness-0 invert opacity-70" />
+                </div>
+                <p className="text-sm font-medium tracking-wide text-slate-300">
+                  Connect Bank
+                </p>
+              </SetuConnect>
+            </div>
 
             <Footer user={user} type="mobile" />
           </div>

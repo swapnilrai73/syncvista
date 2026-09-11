@@ -51,7 +51,11 @@ const Investments = () => {
               </div>
             </div>
             <p className="text-[24px] sm:text-[26px] font-extrabold text-[#002766] tabular-nums tracking-tight font-sans">
-              {isLoading ? '₹0' : `₹${(investmentSummary?.totalPortfolioValue || 0).toLocaleString('en-IN')}`}
+              {isLoading ? (
+                <span className="inline-block h-7 w-28 animate-pulse bg-blue-100/70 rounded-md" />
+              ) : (
+                `₹${(investmentSummary?.totalPortfolioValue || 0).toLocaleString('en-IN')}`
+              )}
             </p>
             <p className="text-[11px] text-slate-400 mt-2 pt-2 border-t border-slate-100">Across verified CAS folios</p>
           </div>
@@ -64,7 +68,11 @@ const Investments = () => {
               </div>
             </div>
             <p className="text-[24px] sm:text-[26px] font-extrabold text-slate-900 tabular-nums tracking-tight font-sans">
-              {isLoading ? '₹0' : `₹${(investmentSummary?.equity || 0).toLocaleString('en-IN')}`}
+              {isLoading ? (
+                <span className="inline-block h-7 w-28 animate-pulse bg-slate-200/70 rounded-md" />
+              ) : (
+                `₹${(investmentSummary?.equity || 0).toLocaleString('en-IN')}`
+              )}
             </p>
             <p className="text-[11px] text-slate-400 mt-2 pt-2 border-t border-slate-100">Direct stocks & depository shares</p>
           </div>
@@ -77,7 +85,11 @@ const Investments = () => {
               </div>
             </div>
             <p className="text-[24px] sm:text-[26px] font-extrabold text-slate-900 tabular-nums tracking-tight font-sans">
-              {isLoading ? '₹0' : `₹${(investmentSummary?.mutualFunds || 0).toLocaleString('en-IN')}`}
+              {isLoading ? (
+                <span className="inline-block h-7 w-28 animate-pulse bg-slate-200/70 rounded-md" />
+              ) : (
+                `₹${(investmentSummary?.mutualFunds || 0).toLocaleString('en-IN')}`
+              )}
             </p>
             <p className="text-[11px] text-slate-400 mt-2 pt-2 border-t border-slate-100">Active SIPs & folio NAV</p>
           </div>
@@ -90,7 +102,11 @@ const Investments = () => {
               </div>
             </div>
             <p className="text-[24px] sm:text-[26px] font-extrabold text-slate-900 tabular-nums tracking-tight font-sans">
-              {isLoading ? '₹0' : `₹${(investmentSummary?.unparsedHoldings || 0).toLocaleString('en-IN')}`}
+              {isLoading ? (
+                <span className="inline-block h-7 w-28 animate-pulse bg-slate-200/70 rounded-md" />
+              ) : (
+                `₹${(investmentSummary?.unparsedHoldings || 0).toLocaleString('en-IN')}`
+              )}
             </p>
             <p className="text-[11px] text-slate-400 mt-2 pt-2 border-t border-slate-100">Fixed income, gold & bonds</p>
           </div>

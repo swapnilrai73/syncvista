@@ -16,7 +16,7 @@ function getPrivateKey(): string {
   //    inside the downloaded JSON / env var text) into real newlines,
   //    which the PEM parser requires.
   return raw
-    .replace(/^"(.*)"$/s, "$1")
+    .replace(/^"([\s\S]*)"$/, "$1")
     .replace(/\\n/g, "\n");
 }
 

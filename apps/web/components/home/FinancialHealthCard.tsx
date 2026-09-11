@@ -21,17 +21,31 @@ export default function FinancialHealthCard({
   anomaliesCount,
 }: FinancialHealthCardProps) {
   // Deterministic 4-dimension scoring (100% mathematical, zero fabrication)
-  const { overallScore, liquidityScore, savingsScore, burnStabilityScore, riskGuardScore, statusTitle, statusColor } = useMemo(() => {
+  const { overallScore, liquidityScore, savingsScore, burnStabilityScore, riskGuardScore, statusTitle, statusColor, burnBufferText } = useMemo(() => {
     // 1. Liquidity Score: 6 months target = 100
     const lScore = Math.min(100, Math.max(0, Math.round((runwayMonths / 6) * 100)))
     
     // 2. Savings Score: 30% savings rate = 100
     const sScore = Math.min(100, Math.max(0, Math.round((savingsRate / 30) * 100)))
     
-    // 3. Burn Stability Score: burn rate relative to 10% net worth threshold
-    const safeThreshold = Math.max(1, netWorth * 0.1)
-    const burnRatio = burnRate / safeThreshold
-    const bScore = Math.min(100, Math.max(0, Math.round((1 - Math.max(0, burnRatio - 0.5)) * 100)))
+    // 3. Burn Stability Score: burn rate buffered by capital reserves (runway cushion)
+    const runwayFraction = burnRate > 0 ? (netWorth > 0 ? netWorth / burnRate : 0) : 12
+    let bScore = 100
+    if (burnRate <= 0) {
+      bScore = 100
+    } else if (netWorth <= 0) {
+      bScore = 10
+    } else if (runwayFraction >= 12) {
+      bScore = 100
+    } else if (runwayFraction >= 6) {
+      bScore = Math.min(100, Math.round(80 + ((runwayFraction - 6) / 6) * 20))
+    } else if (runwayFraction >= 3) {
+      bScore = Math.round(50 + ((runwayFraction - 3) / 3) * 30)
+    } else if (runwayFraction >= 1) {
+      bScore = Math.round(20 + ((runwayFraction - 1) / 2) * 30)
+    } else {
+      bScore = Math.max(5, Math.round(runwayFraction * 20))
+    }
     
     // 4. Risk Guard Score: 0 anomalies = 100, -15 per statistical outlier (>2.5σ)
     const rScore = Math.max(30, 100 - anomaliesCount * 15)
@@ -46,6 +60,14 @@ export default function FinancialHealthCard({
       ? { title: 'Stable with Optimization Scope', color: 'blue' }
       : { title: 'Attention Recommended', color: 'amber' }
 
+    const burnBufferText = burnRate <= 0
+      ? `${formatAmount(burnRate)}/mo • Zero burn recorded`
+      : netWorth <= 0
+      ? `${formatAmount(burnRate)}/mo • Capital deficit`
+      : runwayFraction >= 6
+      ? `${formatAmount(burnRate)}/mo • Safely capitalized (≥6 mo buffer)`
+      : `${formatAmount(burnRate)}/mo • ${runwayFraction.toFixed(1)} mo runway buffer`
+
     return {
       overallScore: composite,
       liquidityScore: lScore,
@@ -54,6 +76,7 @@ export default function FinancialHealthCard({
       riskGuardScore: rScore,
       statusTitle: status.title,
       statusColor: status.color,
+      burnBufferText,
     }
   }, [netWorth, burnRate, savingsRate, runwayMonths, anomaliesCount])
 
@@ -176,7 +199,7 @@ export default function FinancialHealthCard({
               />
             </div>
             <p className="mt-2 text-[11px] text-slate-500">
-              {formatAmount(burnRate)}/mo vs {formatAmount(netWorth * 0.1)} safe limit
+              {burnBufferText}
             </p>
           </div>
 

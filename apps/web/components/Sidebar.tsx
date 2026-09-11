@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useTransition, useEffect } from 'react'
+import { useState, useTransition, useEffect, useRef } from 'react'
 import { sidebarLinks } from '@/constants'
 import { cn } from '@/lib/utils'
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
+import gsap from 'gsap'
 import Footer from './Footer'
 import SetuConnect from './SetuConnect'
 
@@ -17,10 +18,55 @@ const Sidebar = ({ user }: SiderbarProps) => {
   // Optimistic path state updates instantly before server route completes
   const [optimisticPath, setOptimisticPath] = useState(pathname)
 
+  const itemRefs = useRef<(HTMLAnchorElement | null)[]>([])
+  const indicatorRef = useRef<HTMLDivElement>(null)
+  const hasAnimatedRef = useRef(false)
+
   // Sync optimistic path when real route completes
   useEffect(() => {
     setOptimisticPath(pathname)
   }, [pathname])
+
+  const activeIndex = sidebarLinks.findIndex(
+    (item) => optimisticPath === item.route || (item.route !== '/' && optimisticPath.startsWith(`${item.route}/`))
+  )
+
+  useEffect(() => {
+    if (activeIndex === -1) {
+      if (indicatorRef.current) {
+        gsap.to(indicatorRef.current, { opacity: 0, duration: 0.2 })
+      }
+      return
+    }
+
+    const targetEl = itemRefs.current[activeIndex]
+    if (!targetEl || !indicatorRef.current) return
+
+    const targetTop = targetEl.offsetTop
+    const targetHeight = targetEl.offsetHeight
+
+    const prefersReducedMotion =
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+    if (!hasAnimatedRef.current || prefersReducedMotion) {
+      gsap.set(indicatorRef.current, {
+        y: targetTop,
+        height: targetHeight,
+        opacity: 1,
+      })
+      hasAnimatedRef.current = true
+    } else {
+      gsap.to(indicatorRef.current, {
+        y: targetTop,
+        height: targetHeight,
+        opacity: 1,
+        duration: 0.32,
+        ease: 'power2.out',
+        overwrite: 'auto',
+      })
+    }
+  }, [activeIndex, optimisticPath])
 
   const handleNavigation = (route: string, e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault()
@@ -54,36 +100,44 @@ const Sidebar = ({ user }: SiderbarProps) => {
           </h1>
         </Link>
 
-        <div className="space-y-1.5">
-          {sidebarLinks.map((item) => {
-            const isActive = optimisticPath === item.route || (item.route !== '/' && optimisticPath.startsWith(`${item.route}/`))
+        <div className="relative space-y-1.5">
+          {/* GSAP Fluid Selection Liquid-Glass Pill */}
+          <div
+            ref={indicatorRef}
+            aria-hidden="true"
+            className="pointer-events-none absolute left-0 right-0 rounded-xl bg-gradient-to-r from-white/[0.16] to-white/[0.08] backdrop-blur-md border border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.25),0_4px_12px_rgba(0,0,0,0.3)] z-0 will-change-transform"
+            style={{ opacity: 0, pointerEvents: 'none' }}
+          >
+            {/* Subtle active indicator bar */}
+            <span className="pointer-events-none absolute left-0 top-1/2 -translate-y-1/2 h-5 w-1 rounded-r-full bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.8)] max-xl:hidden" />
+          </div>
+
+          {sidebarLinks.map((item, idx) => {
+            const isActive = activeIndex === idx
 
             return (
               <Link 
                 href={item.route} 
                 key={item.label}
+                ref={(el) => { itemRefs.current[idx] = el }}
                 prefetch={true}
                 onClick={(e) => handleNavigation(item.route, e)}
                 className={cn(
-                  'group relative flex gap-3.5 items-center py-2.5 px-3.5 rounded-xl justify-center xl:justify-start transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-blue-400/50',
+                  'group relative flex gap-3.5 items-center py-2.5 px-3.5 rounded-xl justify-center xl:justify-start transition-colors duration-200 outline-none focus-visible:ring-2 focus-visible:ring-blue-400/50 z-20',
                   isActive
-                    ? 'bg-gradient-to-r from-white/[0.16] to-white/[0.08] backdrop-blur-md border border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.25),0_4px_12px_rgba(0,0,0,0.3)] text-white font-semibold'
-                    : 'text-slate-400 hover:text-slate-100 hover:bg-white/[0.06] border border-transparent font-medium',
+                    ? 'text-white font-semibold'
+                    : 'text-slate-400 hover:text-slate-100 hover:bg-white/[0.04] border border-transparent font-medium',
                   isPending && !isActive && 'opacity-60'
                 )}
               >
-                {/* Subtle active indicator bar */}
-                {isActive && (
-                  <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-1 rounded-r-full bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.8)] max-xl:hidden" />
-                )}
-
-                <div className="relative size-5 shrink-0">
+                <div className="size-5 shrink-0 pointer-events-none flex items-center justify-center">
                   <Image 
                     src={item.imgURL}
                     alt={item.label}
-                    fill
+                    width={20}
+                    height={20}
                     className={cn(
-                      'transition-all duration-200 object-contain',
+                      'size-5 transition-all duration-200 object-contain pointer-events-none',
                       isActive
                         ? 'brightness-0 invert drop-shadow-[0_1px_3px_rgba(0,0,0,0.4)]'
                         : 'opacity-70 group-hover:opacity-100 brightness-0 invert'

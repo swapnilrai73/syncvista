@@ -317,6 +317,37 @@ const FinancialAnalysis = ({
   const excessLiquidity = totalLiquidCash - emergencyBufferTarget
 
   if (transactions.length === 0) {
+    if (bankBalances.length > 0) {
+      const singleAccount = bankBalances[0]
+      const accBalance = singleAccount?.currentBalance ?? singleAccount?.balance ?? singleAccount?.availableBalance ?? 0
+      const accName = singleAccount?.name || 'Selected Account'
+      const isCredit = singleAccount?.type === 'credit' || singleAccount?.subtype === 'credit_card'
+
+      return (
+        <div className="bg-white border border-slate-200/90 rounded-2xl p-8 shadow-xs mt-4 text-slate-800">
+          <div className="max-w-xl mx-auto text-center py-8">
+            <div className="inline-flex items-center justify-center p-3.5 bg-blue-50 text-[#002766] rounded-2xl mb-4">
+              <ShieldCheck className="h-7 w-7 text-[#002766]" />
+            </div>
+            <h3 className="text-lg font-bold text-slate-900 tracking-tight">{accName} Active</h3>
+            <p className="text-sm text-slate-500 mt-1">
+              Current Ledger Balance: <span className="font-semibold text-slate-800">{formatAmount(accBalance)}</span>
+            </p>
+            <div className="mt-5 rounded-xl border border-blue-100 bg-blue-50/50 p-4 text-left">
+              <p className="text-xs font-semibold text-[#002766] uppercase tracking-wider mb-1">
+                Zero Settle Activity Recorded
+              </p>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                {isCredit
+                  ? 'No card debits or payments have been recorded for this credit account during the selected timeframe. As transactions settle, credit utilization telemetry and velocity will populate here.'
+                  : 'No debit or credit transactions have been recorded for this depository account during the selected timeframe. As transactions settle, cash flow velocity and spending telemetry will populate automatically.'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )
+    }
+
     return (
       <div className="bg-[#F8FAFC] border border-slate-200 rounded-2xl p-6 shadow-sm mt-4 text-slate-800">
         <div className="text-center py-12">

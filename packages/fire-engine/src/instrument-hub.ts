@@ -94,7 +94,7 @@ export function computeMaxInstrumentWeight(portfolio: InstrumentPortfolio): numb
 }
 
 /** Growth/volatile instrument types — everything else counts as "safe" for the sequence-of-returns buffer check below. */
-const GROWTH_INSTRUMENT_TYPES: ReadonlySet<InstrumentType> = new Set([
+const GROWTH_INSTRUMENT_TYPES: ReadonlySet<InstrumentType> = new Set<InstrumentType>([
   "equityDomestic",
   "equityInternational",
   "realEstate",

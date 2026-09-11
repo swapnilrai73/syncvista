@@ -77,25 +77,128 @@ const TransactionHistoryClient = ({
     return MOCK_DATA.transactions || []
   }, [initialAllTransactions, initialAccount])
 
-  // 2. Filter Transactions based on selected account ID
+  // 2. Current Selected Account Object
+  const currentAccountObj = useMemo(() => {
+    if (!selectedAccountId || selectedAccountId === 'all') return null
+    const target = String(selectedAccountId).toLowerCase()
+    return (
+      effectiveAccounts.find((a: any) => {
+        const bDocId = String(a.bankDocumentId || '').toLowerCase()
+        const id = String(a.id || '').toLowerCase()
+        const docId = String(a.$id || '').toLowerCase()
+        const accId = String(a.accountId || '').toLowerCase()
+        const shareId = String(a.shareableId || '').toLowerCase()
+        return (
+          bDocId === target ||
+          id === target ||
+          docId === target ||
+          accId === target ||
+          shareId === target
+        )
+      }) || initialAccount
+    )
+  }, [effectiveAccounts, selectedAccountId, initialAccount])
+
+  // 3. Resolve Account Identifiers & Known Seed Aliases
+  const accountIdentifiers = useMemo(() => {
+    if (!selectedAccountId || selectedAccountId === 'all') return null
+
+    const ids = new Set<string>()
+    const addId = (val: any) => {
+      if (val !== undefined && val !== null && String(val).trim() !== '') {
+        ids.add(String(val).toLowerCase().trim())
+      }
+    }
+
+    addId(selectedAccountId)
+
+    if (currentAccountObj) {
+      addId(currentAccountObj.bankDocumentId)
+      addId(currentAccountObj.id)
+      addId(currentAccountObj.$id)
+      addId(currentAccountObj.accountId)
+      addId(currentAccountObj.shareableId)
+      addId(currentAccountObj.mask)
+      addId(currentAccountObj.consentId)
+      addId(currentAccountObj.institutionId)
+
+      const name = String(currentAccountObj.name || '').toLowerCase()
+      const offName = String(currentAccountObj.officialName || '').toLowerCase()
+      const bankName = String(currentAccountObj.bankName || '').toLowerCase()
+      const instId = String(currentAccountObj.institutionId || '').toLowerCase()
+      const accType = String(currentAccountObj.type || '').toLowerCase()
+      const subtype = String(currentAccountObj.subtype || '').toLowerCase()
+
+      // HDFC aliases
+      if (name.includes('hdfc') || offName.includes('hdfc') || bankName.includes('hdfc') || instId.includes('hdfc')) {
+        ids.add('bank_hdfc_savings')
+        ids.add('hdfc123456789')
+        ids.add('hdfc-savings-123')
+        ids.add('hdfc')
+      }
+
+      // ICICI aliases
+      if (name.includes('icici') || offName.includes('icici') || bankName.includes('icici') || instId.includes('icici')) {
+        ids.add('bank_icici_salary')
+        ids.add('icici987654321')
+        ids.add('icici-salary-456')
+        ids.add('icici')
+      }
+
+      // Axis Neo / Credit Card aliases
+      if (
+        name.includes('neo') ||
+        offName.includes('neo') ||
+        ((name.includes('axis') || bankName.includes('axis')) && (accType === 'credit' || subtype === 'credit_card' || name.includes('credit')))
+      ) {
+        ids.add('cc_axis_neo')
+        ids.add('axiscc99887766')
+        ids.add('axis-cc-321')
+      }
+
+      // Axis Liberty / Savings aliases
+      if (
+        name.includes('liberty') ||
+        offName.includes('liberty') ||
+        name.includes('prime') ||
+        offName.includes('prime') ||
+        ((name.includes('axis') || bankName.includes('axis')) && accType !== 'credit' && subtype !== 'credit_card' && !name.includes('credit') && !name.includes('neo'))
+      ) {
+        ids.add('bank_axis_savings')
+        ids.add('axis556677889')
+        ids.add('axis-prime-789')
+      }
+    }
+
+    return ids
+  }, [selectedAccountId, currentAccountObj])
+
+  // 4. Filter Transactions based on selected account ID & Identifiers
   const activeTransactions = useMemo(() => {
-    if (!selectedAccountId || selectedAccountId === 'all') {
+    if (!selectedAccountId || selectedAccountId === 'all' || !accountIdentifiers) {
       return effectiveTransactions
     }
 
     return effectiveTransactions.filter((t: any) => {
-      const accId = String(selectedAccountId)
-      return (
-        String(t.bankDocumentId) === accId ||
-        String(t.accountId) === accId ||
-        String(t.bankId) === accId ||
-        String(t.senderBankId) === accId ||
-        String(t.receiverBankId) === accId
-      )
-    })
-  }, [effectiveTransactions, selectedAccountId])
+      const candidates = [
+        t.bankDocumentId,
+        t.accountId,
+        t.bankId,
+        t.senderBankId,
+        t.receiverBankId,
+        t.bank,
+        t.institutionId,
+      ]
 
-  // 3. Filter Transactions for Table View (Search & Category)
+      return candidates.some((cand) => {
+        if (!cand) return false
+        const candStr = String(cand).toLowerCase().trim()
+        return accountIdentifiers.has(candStr)
+      })
+    })
+  }, [effectiveTransactions, selectedAccountId, accountIdentifiers])
+
+  // 5. Filter Transactions for Table View (Search & Category)
   const filteredTableTransactions = useMemo(() => {
     return activeTransactions.filter((t: any) => {
       const matchesSearch = searchQuery === '' || 
@@ -107,14 +210,6 @@ const TransactionHistoryClient = ({
       return matchesSearch && matchesCategory
     })
   }, [activeTransactions, searchQuery, selectedCategory])
-
-  // 4. Current Selected Account Object
-  const currentAccountObj = useMemo(() => {
-    if (!selectedAccountId) return null
-    return effectiveAccounts.find((a: any) => 
-      String(a.bankDocumentId || a.id || a.$id) === String(selectedAccountId)
-    ) || initialAccount
-  }, [effectiveAccounts, selectedAccountId, initialAccount])
 
   // 5. Current Balance Calculation
   const displayCurrentBalance = useMemo(() => {
@@ -158,7 +253,6 @@ const TransactionHistoryClient = ({
     page * rowsPerPage
   )
 
-  if (!mounted) return <div className="p-8">Loading...</div>
 
   return (
     <div className="transactions">
@@ -183,12 +277,19 @@ const TransactionHistoryClient = ({
               </TabsTrigger>
               {effectiveAccounts.map((account: any) => {
                 const accId = account.bankDocumentId || account.id || account.$id
+                const isSelected = selectedAccountId === accId || 
+                  (currentAccountObj && (
+                    currentAccountObj.bankDocumentId === accId ||
+                    currentAccountObj.id === accId ||
+                    currentAccountObj.$id === accId ||
+                    currentAccountObj.accountId === accId
+                  ))
                 return (
                   <TabsTrigger
                     key={accId}
                     value={accId}
                     onClick={() => handleAccountChange(accId)}
-                    className={selectedAccountId === accId ? 'bg-[#002766] text-white shadow-xs font-bold rounded-lg' : 'text-slate-600 font-medium hover:text-slate-900 rounded-lg'}
+                    className={isSelected ? 'bg-[#002766] text-white shadow-xs font-bold rounded-lg' : 'text-slate-600 font-medium hover:text-slate-900 rounded-lg'}
                   >
                     {account.name}
                   </TabsTrigger>

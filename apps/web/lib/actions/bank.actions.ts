@@ -19,8 +19,8 @@ export const getAccounts = async ({ userId }: getAccountsProps) => {
       console.log("No banks found in Firestore, returning mock data");
       const mockAccounts = MOCK_BANK_ACCOUNTS.map((bank: any) => ({
         id: bank.accountId,
-        availableBalance: (bank as any).availableBalance || (bank as any).currentBalance || 0,
-        currentBalance: (bank as any).currentBalance || 0,
+        availableBalance: (bank as any).availableBalance ?? (bank as any).currentBalance ?? 0,
+        currentBalance: (bank as any).currentBalance ?? 0,
         institutionId: (bank as any).institutionId || "setu",
         name: (bank as any).name || "Bank account",
         officialName: (bank as any).officialName || (bank as any).name || "Bank account",
@@ -89,8 +89,8 @@ export const getAccounts = async ({ userId }: getAccountsProps) => {
       console.log("Found accounts with missing balance or required fields, returning mock data");
       const mockAccounts = MOCK_BANK_ACCOUNTS.map((bank: any) => ({
         id: bank.accountId,
-        availableBalance: (bank as any).availableBalance || (bank as any).currentBalance || 0,
-        currentBalance: (bank as any).currentBalance || 0,
+        availableBalance: (bank as any).availableBalance ?? (bank as any).currentBalance ?? 0,
+        currentBalance: (bank as any).currentBalance ?? 0,
         institutionId: (bank as any).institutionId || "setu",
         name: (bank as any).name || "Bank account",
         officialName: (bank as any).officialName || (bank as any).name || "Bank account",
@@ -125,8 +125,8 @@ export const getAccounts = async ({ userId }: getAccountsProps) => {
     console.log("Error fetching accounts, returning mock data with isFallback flag");
     const mockAccounts = MOCK_BANK_ACCOUNTS.map((bank: any) => ({
       id: bank.accountId,
-      availableBalance: (bank as any).availableBalance || (bank as any).currentBalance || 0,
-      currentBalance: (bank as any).currentBalance || 0,
+      availableBalance: (bank as any).availableBalance ?? (bank as any).currentBalance ?? 0,
+      currentBalance: (bank as any).currentBalance ?? 0,
       institutionId: (bank as any).institutionId || "setu",
       name: (bank as any).name || "Bank account",
       officialName: (bank as any).officialName || (bank as any).name || "Bank account",
@@ -190,18 +190,58 @@ export const getAccount = async ({ bankDocumentId }: getAccountProps) => {
         bankId: bank.$id,
       });
 
-      transactions = transferTransactionsData.documents.map(
-        (transferData: Transaction) => ({
-          id: transferData.$id,
-          name: transferData.name!,
-          amount: transferData.amount!,
-          date: transferData.date || transferData.$createdAt,
-          paymentChannel: transferData.paymentChannel || transferData.channel,
-          category: transferData.category,
-          type: transferData.senderBankId === bank.$id ? "debit" : "credit",
-          bankDocumentId: bank.$id,
-        })
-      );
+      if (!transferTransactionsData || transferTransactionsData.documents.length === 0) {
+        const bankNameLower = (bank.name || bank.officialName || "").toLowerCase();
+        const candidateKeys = new Set([
+          bank.$id,
+          bank.accountId,
+          (bank as any).bankDocumentId,
+          (bank as any).shareableId,
+        ].filter(Boolean));
+
+        if (bankNameLower.includes("hdfc")) candidateKeys.add("bank_hdfc_savings");
+        if (bankNameLower.includes("icici")) candidateKeys.add("bank_icici_salary");
+        if (bankNameLower.includes("neo") || (bankNameLower.includes("axis") && (bank.type === "credit" || bank.subtype === "credit_card"))) {
+          candidateKeys.add("cc_axis_neo");
+        }
+        if (bankNameLower.includes("liberty") || (bankNameLower.includes("axis") && bank.type !== "credit")) {
+          candidateKeys.add("bank_axis_savings");
+        }
+
+        const mockBankTxns = MOCK_TRANSACTIONS.filter(
+          (t: any) =>
+            candidateKeys.has(t.senderBankId) ||
+            candidateKeys.has(t.receiverBankId) ||
+            candidateKeys.has(t.bankId) ||
+            candidateKeys.has(t.accountId) ||
+            candidateKeys.has(t.bankDocumentId)
+        );
+        transactions = (mockBankTxns.length > 0 ? mockBankTxns : MOCK_TRANSACTIONS).map(
+          (transferData: any) => ({
+            id: transferData.$id || transferData.id,
+            name: transferData.name!,
+            amount: transferData.amount!,
+            date: transferData.date || transferData.$createdAt,
+            paymentChannel: transferData.paymentChannel || transferData.channel || "online",
+            category: transferData.category || "General",
+            type: transferData.type || (candidateKeys.has(transferData.senderBankId) ? "debit" : "credit"),
+            bankDocumentId: bank.$id,
+          })
+        );
+      } else {
+        transactions = transferTransactionsData.documents.map(
+          (transferData: Transaction) => ({
+            id: transferData.$id,
+            name: transferData.name!,
+            amount: transferData.amount!,
+            date: transferData.date || transferData.$createdAt,
+            paymentChannel: transferData.paymentChannel || transferData.channel,
+            category: transferData.category,
+            type: transferData.senderBankId === bank.$id ? "debit" : "credit",
+            bankDocumentId: bank.$id,
+          })
+        );
+      }
     } else {
       accountData = await getSetuAccount(bank);
 
@@ -305,9 +345,25 @@ export const getAllTransactions = async ({ userId }: getAccountsProps) => {
     
     if (hasMockBanks) {
       // Query all transactions from Firestore for this user's banks
-      const bankIds = banks?.map((bank: Bank) => bank.$id) || [];
+      const bankIds = new Set<string>();
+      banks?.forEach((bank: Bank) => {
+        if (bank.$id) bankIds.add(bank.$id);
+        if (bank.accountId) bankIds.add(bank.accountId);
+        if ((bank as any).bankDocumentId) bankIds.add((bank as any).bankDocumentId);
+        if ((bank as any).shareableId) bankIds.add((bank as any).shareableId);
+        const name = (bank.name || bank.officialName || "").toLowerCase();
+        if (name.includes("hdfc")) bankIds.add("bank_hdfc_savings");
+        if (name.includes("icici")) bankIds.add("bank_icici_salary");
+        if (name.includes("neo") || (name.includes("axis") && (bank.type === "credit" || bank.subtype === "credit_card"))) {
+          bankIds.add("cc_axis_neo");
+        }
+        if (name.includes("liberty") || (name.includes("axis") && bank.type !== "credit")) {
+          bankIds.add("bank_axis_savings");
+        }
+      });
+      const bankIdsArray = Array.from(bankIds).slice(0, 30);
       
-      if (bankIds.length === 0) {
+      if (bankIdsArray.length === 0) {
         console.log("No bank IDs found, returning mock transactions");
         return parseStringify(MOCK_TRANSACTIONS);
       }
@@ -315,11 +371,11 @@ export const getAllTransactions = async ({ userId }: getAccountsProps) => {
       // Query transactions where senderBankId or receiverBankId matches any of the user's banks
       const senderTransactionsQuery = query(
         collection(db, "transactions"),
-        where("senderBankId", "in", bankIds)
+        where("senderBankId", "in", bankIdsArray)
       );
       const receiverTransactionsQuery = query(
         collection(db, "transactions"),
-        where("receiverBankId", "in", bankIds)
+        where("receiverBankId", "in", bankIdsArray)
       );
       
       const [senderSnapshot, receiverSnapshot] = await Promise.all([
@@ -327,18 +383,18 @@ export const getAllTransactions = async ({ userId }: getAccountsProps) => {
         getDocs(receiverTransactionsQuery)
       ]);
       
-      const allTransactions = [
-        ...senderSnapshot.docs.map((doc) => ({
-          id: doc.id,
-          $id: doc.id,
-          ...doc.data()
-        })),
-        ...receiverSnapshot.docs.map((doc) => ({
-          id: doc.id,
-          $id: doc.id,
-          ...doc.data()
-        }))
-      ];
+      const seenIds = new Set<string>();
+      const allTransactions: any[] = [];
+      for (const doc of [...senderSnapshot.docs, ...receiverSnapshot.docs]) {
+        if (!seenIds.has(doc.id)) {
+          seenIds.add(doc.id);
+          allTransactions.push({
+            id: doc.id,
+            $id: doc.id,
+            ...doc.data(),
+          });
+        }
+      }
       
       // If no transactions found in Firestore, return mock data
       if (allTransactions.length === 0) {
