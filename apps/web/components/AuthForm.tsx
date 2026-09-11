@@ -116,7 +116,7 @@ const AuthForm = ({ type }: { type: string }) => {
               alt="SyncVista logo"
             />
             <h1 className="text-[28px] leading-none font-bold tracking-tight text-[#012053] max-xl:hidden font-sans">
-            <span className="font-extrabold">Sync</span>
+            <span className="font-bold">Sync</span>
             <span className="font-normal">Vista</span>
           </h1>
           </Link>

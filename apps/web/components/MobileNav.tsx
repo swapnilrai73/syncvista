@@ -41,7 +41,7 @@ const MobileNav = ({ user }: MobileNavProps) => {
               className="size-8 object-contain shrink-0"
             />
             <h1 className="text-[24px] leading-none font-bold tracking-tight text-white font-sans">
-              <span className="font-extrabold">Sync</span>
+              <span className="font-bold">Sync</span>
               <span className="font-normal text-slate-200">Vista</span>
             </h1>
           </Link>

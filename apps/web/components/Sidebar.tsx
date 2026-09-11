@@ -49,7 +49,7 @@ const Sidebar = ({ user }: SiderbarProps) => {
             priority
           />
           <h1 className="text-[28px] leading-none font-bold tracking-tight text-white max-xl:hidden font-sans">
-            <span className="font-extrabold">Sync</span>
+            <span className="font-bold">Sync</span>
             <span className="font-normal text-slate-200">Vista</span>
           </h1>
         </Link>
