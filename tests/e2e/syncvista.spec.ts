@@ -312,5 +312,70 @@ test.describe('SyncVista Pre-Interview Production Readiness E2E Suite', () => {
     expect(uncaughtErrors).toHaveLength(0);
   });
 
+  test('TEST 12: Customer Settings Popover Controls & Preferences Suite', async ({ page, context }) => {
+    await context.addCookies([TEST_COOKIE]);
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+
+    // 1. Open profile popover menu
+    const profileTrigger = page.locator('button[aria-label="User account menu"]');
+    await expect(profileTrigger).toBeVisible();
+    await profileTrigger.click();
+
+    // 2. Verify settings sections exist
+    await expect(page.getByText(/User Preferences & Controls/i)).toBeVisible();
+    await expect(page.getByText('Privacy Shield')).toBeVisible();
+    await expect(page.getByText('Numeration System')).toBeVisible();
+    await expect(page.getByText('Tax Planning Regime')).toBeVisible();
+
+    // 3. Test Privacy Shield toggle
+    const privacyToggle = page.locator('button[role="switch"][aria-label="Toggle Privacy Shield Mode"]');
+    await expect(privacyToggle).toBeVisible();
+    await expect(privacyToggle).toHaveAttribute('aria-checked', 'false');
+    await privacyToggle.click();
+    await expect(privacyToggle).toHaveAttribute('aria-checked', 'true');
+    await expect(page.getByText('Shield Active')).toBeVisible();
+
+    // 4. Test Numeration standard buttons
+    const westernBtn = page.getByRole('button', { name: /₹ Million\/Bn/i });
+    await expect(westernBtn).toBeVisible();
+    await westernBtn.click();
+    const indianBtn = page.getByRole('button', { name: /₹ Lakh & Cr/i });
+    await indianBtn.click();
+
+    // 5. Test Tax Regime selector
+    const oldRegimeBtn = page.getByRole('button', { name: /Old \(80C \/ 80D\)/i });
+    await expect(oldRegimeBtn).toBeVisible();
+    await oldRegimeBtn.click();
+    const newRegimeBtn = page.getByRole('button', { name: /New \(115BAC\)/i });
+    await newRegimeBtn.click();
+
+    // Take screenshot of settings menu
+    await page.screenshot({ path: '/Users/swapnil/.gemini/antigravity/brain/9a489812-7d0e-42f6-888e-f92478ca1bd5/settings-popover.png' });
+
+    // 6. Test Multi-Regulatory Compliance & KYC Details subview
+    const kycBtn = page.getByRole('button', { name: /Compliance, KYC & Security/i });
+    await kycBtn.click();
+    await expect(page.getByText('Statutory Compliance Matrix')).toBeVisible();
+    await expect(page.getByText('RBI Account Aggregator (AA)')).toBeVisible();
+    await expect(page.getByText('SEBI RIA Regulations, 2013')).toBeVisible();
+    await expect(page.getByText('DPDP Act, 2023 (Data Protection)')).toBeVisible();
+    await expect(page.getByText('PAN Verification')).toBeVisible();
+    await expect(page.getByText(/●●●●●●(234F|1234)/)).toBeVisible();
+
+    // Take screenshot of multi-regulatory compliance matrix subview
+    await page.screenshot({ path: '/Users/swapnil/.gemini/antigravity/brain/9a489812-7d0e-42f6-888e-f92478ca1bd5/compliance-popover.png' });
+
+    // 7. Test Back to Settings button
+    const backBtn = page.getByRole('button', { name: /Back to Settings/i });
+    await backBtn.click();
+    await expect(page.getByText('Privacy Shield')).toBeVisible();
+
+    // 8. Test Instant Sign Out
+    const signOutBtn = page.getByRole('button', { name: /Sign Out of SyncVista/i });
+    await signOutBtn.click();
+    await page.waitForURL('**/sign-in', { timeout: 10000 });
+    expect(page.url()).toContain('/sign-in');
+  });
+
 });
 

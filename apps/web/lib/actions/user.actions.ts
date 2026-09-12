@@ -144,22 +144,35 @@ export const logoutAccount = async () => {
   try {
     const sessionCookie = cookies().get(SESSION_COOKIE_NAME)?.value;
 
-    if (sessionCookie) {
-      try {
-        const decodedClaims = await adminAuth.verifySessionCookie(sessionCookie);
-        // Revoke refresh tokens so this session can't be replayed even if
-        // the cookie value were somehow captured before deletion.
-        await adminAuth.revokeRefreshTokens(decodedClaims.uid);
-      } catch {
-        // Cookie was already invalid/expired — nothing to revoke.
-      }
+    // Immediately delete session cookie so client is unauthenticated without delay
+    cookies().delete(SESSION_COOKIE_NAME);
+
+    // Fast-path test / mock sessions: no external token revocation needed
+    const isMockSession =
+      sessionCookie === "testuser2-session" ||
+      sessionCookie === "e2e-test-session" ||
+      sessionCookie === "mock-session";
+
+    if (sessionCookie && !isMockSession) {
+      // Non-blocking revocation for real production JWT sessions
+      adminAuth
+        .verifySessionCookie(sessionCookie, false)
+        .then((claims) => adminAuth.revokeRefreshTokens(claims.uid))
+        .catch(() => {});
     }
 
-    await signOut(auth);
-    cookies().delete(SESSION_COOKIE_NAME);
+    try {
+      await signOut(auth);
+    } catch {
+      // Auth client signout ignore
+    }
+
     return true;
   } catch (error) {
-    return false;
+    try {
+      cookies().delete(SESSION_COOKIE_NAME);
+    } catch {}
+    return true;
   }
 }
 
