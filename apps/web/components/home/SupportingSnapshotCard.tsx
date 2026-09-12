@@ -84,7 +84,7 @@ export default function SupportingSnapshotCard({
                         <p className="text-xs font-bold text-slate-800 max-w-[120px] truncate">
                           {acc.name}
                         </p>
-                        <p className="text-[10px] text-slate-400">
+                        <p className="text-[10px] text-slate-600">
                           ●●●● {acc.mask || '****'}
                         </p>
                       </div>
@@ -166,7 +166,7 @@ export default function SupportingSnapshotCard({
                   >
                     <div className="max-w-[130px] truncate">
                       <p className="font-semibold text-slate-800 truncate">{t.name}</p>
-                      <p className="text-[10px] text-slate-400">{t.category}</p>
+                      <p className="text-[10px] text-slate-600">{t.category}</p>
                     </div>
                     <span className={`font-bold tabular-nums ${isDebit ? 'text-slate-800' : 'text-emerald-700'}`}>
                       {isDebit ? `-${formatAmount(Math.abs(t.amount))}` : formatAmount(Math.abs(t.amount))}

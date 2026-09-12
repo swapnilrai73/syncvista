@@ -158,7 +158,7 @@ export default function SyncVistaIntelligenceCard({
 
       {/* Action Footer & Regulatory Boundary Notice */}
       <div className="mt-5 pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <p className="text-[11px] text-slate-400 max-w-xl leading-relaxed">
+        <p className="text-[11px] text-slate-600 max-w-xl leading-relaxed">
           Educational System of Record: Modeled deterministically per SEBI RIA guidelines. Projections reflect pure mathematical optimization, never arbitrary LLM calculations.
         </p>
 

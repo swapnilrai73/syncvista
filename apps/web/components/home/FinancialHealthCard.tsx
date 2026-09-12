@@ -129,7 +129,7 @@ export default function FinancialHealthCard({
             <span className="text-5xl font-extrabold tracking-tight text-[#002766] tabular-nums">
               {overallScore}
             </span>
-            <span className="text-xl font-medium text-slate-400">/ 100</span>
+            <span className="text-xl font-medium text-slate-600">/ 100</span>
           </div>
 
           <p className="mt-2 text-sm font-semibold text-slate-800">

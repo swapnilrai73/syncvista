@@ -86,7 +86,7 @@ export default function FinancialTrajectoryCard({
           </div>
           <div>
             <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Gross Outflow</span>
-            <p className="text-sm sm:text-base font-bold text-rose-600 tabular-nums mt-0.5">
+            <p className="text-sm sm:text-base font-bold text-rose-700 tabular-nums mt-0.5">
               {formatAmount(grossOutflow)}
             </p>
           </div>
@@ -157,7 +157,7 @@ export default function FinancialTrajectoryCard({
               <span className="text-[11px] text-slate-500 font-medium">
                 6-Month Projected Run-Rate
               </span>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-600">
                 At current net capital generation velocity
               </p>
             </div>

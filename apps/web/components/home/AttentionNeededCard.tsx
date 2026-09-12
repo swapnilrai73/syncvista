@@ -136,7 +136,7 @@ export default function AttentionNeededCard({
             </p>
           </div>
 
-          <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full">
+          <span className="text-xs font-bold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-full">
             {attentionItems.length} Signals
           </span>
         </div>
@@ -166,7 +166,7 @@ export default function AttentionNeededCard({
                   {item.what}
                 </p>
 
-                <p className="mt-1 text-[11px] text-slate-400 leading-normal">
+                <p className="mt-1 text-[11px] text-slate-600 leading-normal">
                   {item.why}
                 </p>
 

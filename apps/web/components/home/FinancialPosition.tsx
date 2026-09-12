@@ -40,7 +40,7 @@ export default function FinancialPosition({
               {greeting}, {userFirstName}
             </h1>
           </div>
-          <p className="text-sm sm:text-base text-slate-500 mt-1.5">
+          <p className="text-sm sm:text-base text-slate-700 mt-1.5">
             Financial Command Center • Holistic system of record and diagnostic intelligence
           </p>
         </div>
