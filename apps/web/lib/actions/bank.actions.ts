@@ -7,6 +7,7 @@ import { getBanks, getBank, getLoggedInUser } from "./user.actions";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "../firebase";
 import { MOCK_BANK_ACCOUNTS, MOCK_TRANSACTIONS } from "../mockData";
+import { normalizeSetuTransaction, normalizeFirebaseTransfer, normalizeMockTransaction } from "../utils/normalize";
 
 // Get multiple bank accounts
 export const getAccounts = async ({ userId }: getAccountsProps) => {
@@ -212,30 +213,11 @@ export const getAccount = async ({ bankDocumentId }: getAccountProps) => {
             candidateKeys.has(t.bankDocumentId)
         );
         transactions = (mockBankTxns.length > 0 ? mockBankTxns : MOCK_TRANSACTIONS).map(
-          (transferData: any) => ({
-            id: transferData.$id || transferData.id,
-            name: transferData.name!,
-            amount: transferData.amount!,
-            date: transferData.date || transferData.$createdAt,
-            paymentChannel: transferData.paymentChannel || transferData.channel || "online",
-            category: transferData.category || "General",
-            type: transferData.type || (candidateKeys.has(transferData.senderBankId) ? "debit" : "credit"),
-            bankDocumentId: bank.$id,
-            mock: true, // Explicit provenance
-          })
+          (transferData: any) => normalizeMockTransaction(transferData, candidateKeys, bank.$id)
         );
       } else {
         transactions = transferTransactionsData.documents.map(
-          (transferData: Transaction) => ({
-            id: transferData.$id,
-            name: transferData.name!,
-            amount: transferData.amount!,
-            date: transferData.date || transferData.$createdAt,
-            paymentChannel: transferData.paymentChannel || transferData.channel,
-            category: transferData.category,
-            type: transferData.senderBankId === bank.$id ? "debit" : "credit",
-            bankDocumentId: bank.$id,
-          })
+          (transferData: any) => normalizeFirebaseTransfer(transferData, bank.$id)
         );
       }
     } else {
@@ -247,15 +229,7 @@ export const getAccount = async ({ bankDocumentId }: getAccountProps) => {
       });
 
       const transferTransactions = transferTransactionsData.documents.map(
-        (transferData: Transaction) => ({
-          id: transferData.$id,
-          name: transferData.name!,
-          amount: transferData.amount!,
-          date: transferData.$createdAt,
-          paymentChannel: transferData.channel,
-          category: transferData.category,
-          type: transferData.senderBankId === bank.$id ? "debit" : "credit",
-        })
+        (transferData: any) => normalizeFirebaseTransfer(transferData, bank.$id)
       );
 
       const setuData = await getSetuAccountData(bank.consentId);
@@ -311,18 +285,7 @@ const getSetuAccount = async (bank: Bank) => {
 
 const getSetuTransactions = (data: any): Transaction[] => {
   const transactions = data.transactions || data.Transactions || data.accounts?.flatMap((account: any) => account.transactions || []) || [];
-  return transactions.map((transaction: any) => ({
-    id: transaction.id || transaction.transactionId,
-    name: transaction.description || transaction.narration || transaction.name || "Transaction",
-    paymentChannel: transaction.mode || transaction.paymentChannel || "online",
-    type: transaction.type || "debit",
-    accountId: transaction.accountId || "",
-    amount: Number(transaction.amount || 0),
-    pending: Boolean(transaction.pending),
-    category: transaction.category || "",
-    date: transaction.date || transaction.transactionDate,
-    image: transaction.image || "",
-  }));
+  return transactions.map((transaction: any) => normalizeSetuTransaction(transaction));
 };
 
 // Get transactions from all bank accounts
@@ -384,11 +347,8 @@ export const getAllTransactions = async ({ userId }: getAccountsProps) => {
       for (const doc of [...senderSnapshot.docs, ...receiverSnapshot.docs]) {
         if (!seenIds.has(doc.id)) {
           seenIds.add(doc.id);
-          allTransactions.push({
-            id: doc.id,
-            $id: doc.id,
-            ...doc.data(),
-          });
+          const rawData = { $id: doc.id, ...doc.data() } as any;
+          allTransactions.push(normalizeFirebaseTransfer(rawData));
         }
       }
       
@@ -416,16 +376,7 @@ export const getAllTransactions = async ({ userId }: getAccountsProps) => {
         });
 
         const transferTransactions = transferTransactionsData.documents.map(
-          (transferData: Transaction) => ({
-            id: transferData.$id,
-            name: transferData.name!,
-            amount: transferData.amount!,
-            date: transferData.$createdAt,
-            paymentChannel: transferData.channel,
-            category: transferData.category,
-            type: transferData.senderBankId === bank.$id ? "debit" : "credit",
-            bankDocumentId: bank.$id,
-          })
+          (transferData: any) => normalizeFirebaseTransfer(transferData, bank.$id)
         );
 
         const transactionsWithBankId = setuTransactions.map((txn) => ({

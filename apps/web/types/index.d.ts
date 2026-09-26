@@ -61,24 +61,53 @@ declare type Account = {
   shareableId: string;
 };
 
-declare type Transaction = {
+declare type NormalizedTransaction = {
   id: string;
-  $id: string;
   name: string;
-  paymentChannel: string;
-  type: string;
-  accountId: string;
   amount: number;
-  pending: boolean;
-  category: string;
   date: string;
-  image: string;
+  category: string;
+  type: "credit" | "debit";
+  paymentChannel: string;
+  pending: boolean;
+  bankDocumentId?: string;
+  senderBankId?: string;
+  receiverBankId?: string;
+  mock?: boolean;
+};
+
+// Raw inputs before normalization
+declare type SetuTransaction = {
+  id?: string;
+  transactionId?: string;
+  description?: string;
+  narration?: string;
+  name?: string;
+  mode?: string;
+  paymentChannel?: string;
+  type?: string;
+  accountId?: string;
+  amount?: string | number;
+  pending?: boolean;
+  category?: string;
+  date?: string;
+  transactionDate?: string;
+};
+
+declare type FirebaseTransferTransaction = {
+  $id: string;
   $createdAt: string;
+  name: string;
+  amount: number;
   channel: string;
+  category: string;
   senderBankId: string;
   receiverBankId: string;
-  bankDocumentId?: string;
 };
+
+// Aliasing the global Transaction to NormalizedTransaction for backward compatibility 
+// with UI components, but now with a strict canonical shape.
+declare type Transaction = NormalizedTransaction;
 
 declare type Bank = {
   $id: string;
