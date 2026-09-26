@@ -70,13 +70,19 @@ export function runFireEngine(input: FireEngineInput): FireEngineOutput {
     debtOutput?.totalFreedMonthlyCashFlowByYear
   );
 
+  const monthlyReturn = portfolioReturn / 12;
+  const monthsToRetirement = yearsToRetirement * 12;
+  let fvSip = 0;
+  if (portfolioReturn === 0) {
+    fvSip = input.portfolio.monthlyInvestment * monthsToRetirement;
+  } else {
+    fvSip =
+      input.portfolio.monthlyInvestment *
+      ((Math.pow(1 + monthlyReturn, monthsToRetirement) - 1) / monthlyReturn);
+  }
+
   const projectedCorpusAtRetirement =
-    input.portfolio.currentCorpus * Math.pow(1 + portfolioReturn, yearsToRetirement) +
-    // future value of a monthly SIP annuity at the CURRENT contribution rate
-    (input.portfolio.monthlyInvestment *
-      12 *
-      (Math.pow(1 + portfolioReturn, yearsToRetirement) - 1)) /
-      portfolioReturn;
+    input.portfolio.currentCorpus * Math.pow(1 + portfolioReturn, yearsToRetirement) + fvSip;
 
   const monteCarlo = runMonteCarloSimulation(input, targetCorpus);
   const liquidityBucketPlan = computeLiquidityBucketPlan(

@@ -65,8 +65,15 @@ export function calculateBucketedPresentValue(
   const portfolioReturn = resolvePortfolioReturn(input.portfolio);
   const buckets = Object.keys(input.expenses) as InflationBucket[];
 
-  // City cost multiplier applies to housing and general-living buckets
-  const cityMultiplier = getCityMultiplier(input.profile.cityTier, input.profile.city);
+  // The city cost adjustment scales ACTUAL entered expenses by the relative cost of 
+  // moving to a new city for retirement. If they aren't moving, ratio = 1.0.
+  const currentCityCost = getCityMultiplier(input.profile.cityTier, input.profile.city);
+  const targetCityCost = getCityMultiplier(
+    input.profile.targetRetirementCityTier || input.profile.cityTier,
+    input.profile.targetRetirementCity || input.profile.city
+  );
+  const costRatio = targetCityCost / currentCityCost;
+  
   const CITY_ADJUSTED_BUCKETS: InflationBucket[] = ["housing", "general"];
 
   let presentValue = 0;
@@ -81,7 +88,7 @@ export function calculateBucketedPresentValue(
   // 1. Post-retirement expenses: model the stream over horizonYears starting at retirement date
   for (const bucket of buckets) {
     const bucketInflation = getBucketInflationRate(bucket, input.assumptions.generalInflation);
-    const cityAdjustment = CITY_ADJUSTED_BUCKETS.includes(bucket) ? cityMultiplier : 1;
+    const cityAdjustment = CITY_ADJUSTED_BUCKETS.includes(bucket) ? costRatio : 1;
     const annualExpenseToday = annualize(input.expenses[bucket]) * cityAdjustment;
 
     // Inflate the annual expense from today up to retirement date
@@ -91,9 +98,20 @@ export function calculateBucketedPresentValue(
       const discountFactor = Math.pow(1 + portfolioReturn, y);
       const totalYearFromToday = yearsToRetirement + y;
 
-      // Check if debt payoff overrides housing bucket in this specific retirement year
-      const debtOverride =
-        bucket === "housing" ? debtOutput?.housingExpenseByYear?.[totalYearFromToday] : undefined;
+      // Check if debt payoff overrides housing bucket in this specific retirement year.
+      // We only override if there is actually a "home" loan; otherwise we'd incorrectly wipe out rent.
+      // If the loan is cleared, the debt engine stops recording, so we carry forward 0.
+      let debtOverride: number | undefined = undefined;
+      const hasHomeLoan = input.debtClearance?.loans.some((l) => l.type === "home");
+      
+      if (bucket === "housing" && hasHomeLoan && debtOutput?.housingExpenseByYear) {
+        const recordedYears = Object.keys(debtOutput.housingExpenseByYear).map(Number);
+        const lastRecordedYear = recordedYears.length ? Math.max(...recordedYears) : 0;
+        debtOverride =
+          totalYearFromToday <= lastRecordedYear
+            ? debtOutput.housingExpenseByYear[totalYearFromToday] || 0
+            : 0; // Loan cleared, EMI is 0
+      }
 
       let expenseInYear: number;
       if (debtOverride !== undefined) {
@@ -138,8 +156,15 @@ export function calculateBucketedPresentValue(
  */
 export function calculateTerminalBaseCorpus(input: FireEngineInput): number {
   const yearsToRetirement = input.profile.targetRetirementAge - input.profile.currentAge;
-  const cityMultiplier = getCityMultiplier(input.profile.cityTier, input.profile.city);
-  const baseAnnualExpense = annualize(input.expenses.general) * cityMultiplier;
+  
+  const currentCityCost = getCityMultiplier(input.profile.cityTier, input.profile.city);
+  const targetCityCost = getCityMultiplier(
+    input.profile.targetRetirementCityTier || input.profile.cityTier,
+    input.profile.targetRetirementCity || input.profile.city
+  );
+  const costRatio = targetCityCost / currentCityCost;
+  
+  const baseAnnualExpense = annualize(input.expenses.general) * costRatio;
   const generalInflation = input.assumptions.generalInflation;
 
   // Inflated general expense at retirement date
@@ -200,6 +225,10 @@ export function calculateRequiredMonthlySavings(
   }
 
   // Standard future-value-of-annuity, solved for payment.
-  const annuityFactor = (Math.pow(1 + monthlyReturn, monthsToRetirement) - 1) / monthlyReturn;
+  let annuityFactor = monthsToRetirement;
+  if (monthlyReturn !== 0) {
+    annuityFactor = (Math.pow(1 + monthlyReturn, monthsToRetirement) - 1) / monthlyReturn;
+  }
+  
   return { requiredMonthlySavings: gap / annuityFactor, surplusAtRetirement: 0 };
 }

@@ -81,7 +81,12 @@ function runSinglePath(
   for (let year = 0; year < horizonYears; year++) {
     const yearReturn = sampleNormal(expectedReturn, volatility, rng);
     const shockCost = rollShocksForYear(shocks, yearsToRetirement + year, generalInflation, rng);
-    // Accurately compound general inflation on annual retirement withdrawals
+    // Accurately compound general inflation on annual retirement withdrawals.
+    // NOTE: This intentionally uses generalInflation rather than the granular bucketed 
+    // inflation from corpus.ts. The deterministic engine computes exact bucketed needs, 
+    // while this Monte Carlo simulation tests the resilience of a standard Safe Withdrawal 
+    // Rate (SWR) policy (e.g. 4% rule), which by definition inflates the initial withdrawal 
+    // amount annually by general CPI.
     const currentWithdrawal = initialAnnualWithdrawal * Math.pow(1 + generalInflation, year);
     balance = balance * (1 + yearReturn) - currentWithdrawal - shockCost;
     if (balance <= 0) return 0;

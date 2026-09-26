@@ -24,6 +24,14 @@ export interface UserProfile {
   cityTier: CityTier;
   /** Optional specific city name (e.g. "Mumbai", "Bhopal") for a more precise cost multiplier than the tier average. */
   city?: string;
+  
+  /** 
+   * If the user plans to move for retirement, this specifies the target tier. 
+   * The engine will scale the user's ACTUAL current expenses by the ratio of (Target City Cost / Current City Cost).
+   * If omitted, assumes the user retires in their current city (ratio = 1.0).
+   */
+  targetRetirementCityTier?: CityTier;
+  targetRetirementCity?: string;
 }
 
 /** Monthly expense amounts, in today's rupees, per inflation bucket. */

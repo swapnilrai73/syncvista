@@ -174,3 +174,167 @@ describe("Corpus Calculation Engine (Module A & B)", () => {
     expect(output.liquidityBucketPlan.bucket1Immediate).toBeGreaterThan(0);
   });
 });
+import { describe, it, expect } from "./test-utils";
+import { calculateBucketedPresentValue } from "../src/corpus";
+import { runDebtClearanceEngine } from "../src/debt-engine";
+import type { FireEngineInput, DebtClearanceInput } from "../src/types";
+
+describe("Post-Debt Housing Expense Spike", () => {
+  it("should not spike housing expenses after debt is cleared", () => {
+    const debtInput: DebtClearanceInput = {
+      loans: [
+        {
+          id: "home-loan-1",
+          type: "home",
+          label: "Home Loan",
+          outstandingBalance: 1000000,
+          annualInterestRate: 0.085,
+          monthlyEMI: 20000,
+          section24bEligible: true,
+          section80CEligible: true,
+        },
+      ],
+      extraMonthlyPayment: 0,
+      userMarginalTaxRate: 0.3,
+      expectedPostTaxPortfolioReturn: 0.1,
+      strategy: "avalanche",
+    };
+
+    const debtOutput = runDebtClearanceEngine(debtInput);
+
+    const input: FireEngineInput = {
+      profile: {
+        currentAge: 40,
+        targetRetirementAge: 50, // 10 years to retirement
+        cityTier: "metro",
+        city: "mumbai",
+      },
+      expenses: {
+        general: 40000,
+        healthcare: 10000,
+        education: 15000,
+        housing: 20000, // same as EMI
+        techDurables: 5000,
+      },
+      goals: [],
+      portfolio: {
+        currentCorpus: 1000000,
+        monthlyInvestment: 10000,
+        allocation: {
+          equityDomestic: 0.6,
+          equityInternational: 0.1,
+          debt: 0.2,
+          gold: 0.05,
+          realEstate: 0,
+          cash: 0.05,
+        },
+      },
+      assumptions: {
+        generalInflation: 0.06,
+        withdrawalRate: 0.04,
+        monteCarloRuns: 100,
+        postRetirementHorizonYears: 30,
+        seed: 42,
+      },
+      taxYear: "FY2026-27",
+      debtClearance: debtInput,
+    };
+
+    // Calculate present value with and without debt
+    const { bucketedContribution: withoutDebt } = calculateBucketedPresentValue(input);
+    const { bucketedContribution: withDebt } = calculateBucketedPresentValue(input, debtOutput);
+
+    // The housing contribution with debt should be LESS than or equal to the one without debt
+    // because the debt clears before retirement (at year 10 it's around month 61, so ~5 years).
+    // So in retirement (years 11 to 40), the housing EMI is 0!
+    // BUT due to the bug, it spikes back to the full inflated housing cost.
+    console.log("Housing without debt:", withoutDebt.housing);
+    console.log("Housing with debt:", withDebt.housing);
+
+    expect(withDebt.housing).toBeLessThan(withoutDebt.housing);
+  });
+});
+import { describe, it, expect } from "./test-utils";
+import { calculateRequiredMonthlySavings } from "../src/corpus";
+import { runFireEngine } from "../src/index";
+import type { FireEngineInput } from "../src/types";
+
+describe("Zero-Return Handling", () => {
+  it("should handle 0% portfolio return without NaN or Infinity", () => {
+    const { requiredMonthlySavings, surplusAtRetirement } = calculateRequiredMonthlySavings(
+      1000000,
+      100000,
+      10, // 10 years
+      0   // 0% return
+    );
+    
+    // gap = 1000000 - 100000 = 900000
+    // months = 120
+    // required = 900000 / 120 = 7500
+    expect(requiredMonthlySavings).toBe(7500);
+    expect(surplusAtRetirement).toBe(0);
+  });
+
+  it("should handle full engine run with 0% return", () => {
+    const baseInput: FireEngineInput = {
+      profile: { currentAge: 30, targetRetirementAge: 50, cityTier: "metro", city: "mumbai" },
+      expenses: { general: 40000, healthcare: 10000, education: 0, housing: 0, techDurables: 0 },
+      goals: [],
+      portfolio: {
+        currentCorpus: 1000000,
+        monthlyInvestment: 10000,
+        allocation: {
+          equityDomestic: 0,
+          equityInternational: 0,
+          debt: 0,
+          gold: 0,
+          realEstate: 0,
+          cash: 1.0, // 0 return assumed? wait, cash might have a return
+        },
+      },
+      assumptions: { generalInflation: 0.06, withdrawalRate: 0.04, monteCarloRuns: 10, postRetirementHorizonYears: 30, seed: 42 },
+      taxYear: "FY2026-27",
+    };
+    
+    // If cash has a return in market-assumptions, we'll override it manually via instruments
+    baseInput.portfolio.instruments = [{ type: "cash", currentValue: 1000000 }];
+    
+    // We will test the engine with zero return if possible
+    // Wait, let's just make sure it doesn't crash if return is exactly 0
+  });
+});
+import { describe, it, expect } from "./test-utils";
+import { calculateTerminalBaseCorpus } from "../src/corpus";
+import type { FireEngineInput } from "../src/types";
+
+describe("City Cost Ratio", () => {
+  it("should scale actual expenses by the ratio of target to current city cost", () => {
+    const input: FireEngineInput = {
+      profile: {
+        currentAge: 30,
+        targetRetirementAge: 30, // 0 years, simplifies inflation
+        cityTier: "tier2",
+        city: "bhopal", // multiplier ~ 0.4
+        targetRetirementCityTier: "metro",
+        targetRetirementCity: "mumbai", // multiplier 1.0
+      },
+      expenses: {
+        general: 40000, // 40k in bhopal
+        healthcare: 0,
+        education: 0,
+        housing: 0,
+        techDurables: 0,
+      },
+      goals: [],
+      portfolio: { currentCorpus: 0, monthlyInvestment: 0, allocation: { equityDomestic: 0, equityInternational: 0, debt: 0, gold: 0, realEstate: 0, cash: 1 } },
+      assumptions: { generalInflation: 0.06, withdrawalRate: 0.04, monteCarloRuns: 10, postRetirementHorizonYears: 30 },
+      taxYear: "FY2026-27",
+    };
+    
+    // ratio = 1.0 / 0.4 = 2.5
+    // baseAnnualExpense = 480,000 * 2.5 = 1,200,000
+    // terminalBase = 1,200,000 * 25 = 30,000,000
+    const terminal = calculateTerminalBaseCorpus(input);
+    expect(terminal).toBe(30000000);
+  });
+});

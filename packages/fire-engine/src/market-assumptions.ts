@@ -16,7 +16,8 @@ export interface AssetClassAssumption {
 
 export const MARKET_ASSUMPTIONS_2026: Record<keyof AssetAllocation, AssetClassAssumption> = {
   equityDomestic: { expectedNominalReturn: 0.12, volatility: 0.18 },
-  equityInternational: { expectedNominalReturn: 0.1, volatility: 0.16 },
+  // 10% USD-equivalent long-run assumption + ~2% historical INR depreciation drag.
+  equityInternational: { expectedNominalReturn: 0.12, volatility: 0.17 },
   debt: { expectedNominalReturn: 0.075, volatility: 0.04 },
   gold: { expectedNominalReturn: 0.08, volatility: 0.15 },
   realEstate: { expectedNominalReturn: 0.09, volatility: 0.1 },
