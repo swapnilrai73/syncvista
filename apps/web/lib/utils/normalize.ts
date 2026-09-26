@@ -1,8 +1,14 @@
 export function normalizeSetuTransaction(raw: SetuTransaction): NormalizedTransaction {
+  const sourceTransactionId = raw.transactionId || raw.id || crypto.randomUUID();
+  const rawAmount = Number(raw.amount || 0);
+  
   return {
-    id: raw.id || raw.transactionId || crypto.randomUUID(),
+    id: `norm-setu-${sourceTransactionId}`,
+    sourceTransactionId,
+    source: "setu",
     name: raw.description || raw.narration || raw.name || "Transaction",
-    amount: Number(raw.amount || 0),
+    amount: Math.abs(rawAmount),
+    currency: "INR", // Setu transactions are domestic Indian
     date: raw.date || raw.transactionDate || new Date().toISOString(),
     category: raw.category || "General",
     type: (raw.type === "CREDIT" || raw.type === "credit") ? "credit" : "debit",
@@ -13,9 +19,12 @@ export function normalizeSetuTransaction(raw: SetuTransaction): NormalizedTransa
 
 export function normalizeFirebaseTransfer(raw: FirebaseTransferTransaction, contextBankId?: string): NormalizedTransaction {
   return {
-    id: raw.$id,
+    id: `norm-fb-${raw.$id}`,
+    sourceTransactionId: raw.$id,
+    source: "firebase",
     name: raw.name,
-    amount: raw.amount,
+    amount: Math.abs(raw.amount),
+    currency: "INR", // SyncVista transfers are domestic Indian
     date: raw.$createdAt,
     category: raw.category || "Transfer",
     type: (contextBankId && raw.senderBankId === contextBankId) ? "debit" : "credit",
@@ -32,10 +41,16 @@ export function normalizeMockTransaction(raw: any, candidateKeys?: Set<string>, 
     type = candidateKeys.has(raw.senderBankId) ? "debit" : "credit";
   }
 
+  const sourceTransactionId = raw.$id || raw.id || crypto.randomUUID();
+  const rawAmount = Number(raw.amount || 0);
+
   return {
-    id: raw.$id || raw.id || crypto.randomUUID(),
+    id: `norm-mock-${sourceTransactionId}`,
+    sourceTransactionId,
+    source: "mock",
     name: raw.name || "Mock Transaction",
-    amount: Number(raw.amount || 0),
+    amount: Math.abs(rawAmount),
+    currency: raw.currency || "INR",
     date: raw.date || raw.$createdAt || new Date().toISOString(),
     category: raw.category || "General",
     type,

@@ -60,24 +60,25 @@ export function detectOpportunities(snapshot: FinancialSnapshot): FinancialOppor
     });
   }
 
-  // DETECTOR 3: HIGH INTEREST DEBT
-  // Scanning for explicit credit card balances or known high-interest loans
+  // DETECTOR 3: OUTSTANDING CREDIT BALANCE
+  // Scanning for explicit credit card balances or known loans. We do not assume high interest
+  // unless we have specific APR data or interest charge transactions.
   const creditAccounts = snapshot.accounts.filter(
-    a => a.type === "credit" || a.subtype === "credit_card"
+    a => a.type === "credit" || a.subtype === "credit_card" || a.type === "loan "
   );
   
   let totalCreditDebt = 0;
   creditAccounts.forEach(acc => {
-    // Current balance on a credit card is debt
+    // Current balance on a credit card/loan is debt
     const debt = Math.abs(acc.currentBalance ?? 0);
     if (debt > 0) {
       totalCreditDebt += debt;
       opportunities.push({
         id: `OPP-DEBT-${acc.id}-${Date.now()}`,
-        type: "HIGH_INTEREST_DEBT",
+        type: "OUTSTANDING_CREDIT_BALANCE",
         severity: debt > averageMonthlyBurn ? "CRITICAL" : "HIGH",
         title: `Outstanding Balance on ${acc.name}`,
-        description: `Carrying a balance of ₹${debt.toLocaleString()} on a credit card typically incurs 30-40% annualized interest.`,
+        description: `You are carrying a balance of ₹${debt.toLocaleString()} on this credit account.`,
         detectedValue: debt,
         metadata: { accountId: acc.id, accountName: acc.name },
         createdAt: now,

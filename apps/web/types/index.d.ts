@@ -62,12 +62,15 @@ declare type Account = {
 };
 
 declare type NormalizedTransaction = {
-  id: string;
-  name: string;
-  amount: number;
+  id: string; // our internal normalized ID
+  name: string; // merchant/narration
+  amount: number; // absolute magnitude
+  currency: string; // required
   date: string;
   category: string;
-  type: "credit" | "debit";
+  type: "credit" | "debit"; // explicitly separate direction
+  source: string; // e.g. "setu", "firebase", "mock"
+  sourceTransactionId: string; // provenance for audit
   paymentChannel: string;
   pending: boolean;
   bankDocumentId?: string;
@@ -145,6 +148,7 @@ declare type FinancialSnapshot = {
 declare type OpportunityType = 
   | "LOW_EMERGENCY_FUND"
   | "HIGH_INTEREST_DEBT"
+  | "OUTSTANDING_CREDIT_BALANCE"
   | "EXCESS_IDLE_CASH"
   | "TAX_HARVEST_AVAILABLE"
   | "CONCENTRATION_RISK";

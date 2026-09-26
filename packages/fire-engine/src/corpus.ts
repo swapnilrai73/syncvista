@@ -85,39 +85,46 @@ export function calculateBucketedPresentValue(
     housing: 0,
   };
 
+  // We need to isolate the home loan EMI from the total housing bucket to determine continuing costs.
+  let totalHomeLoanEMIToday = 0;
+  if (input.debtClearance) {
+    totalHomeLoanEMIToday = input.debtClearance.loans
+      .filter((l) => l.type === "home")
+      .reduce((sum, l) => sum + l.monthlyEMI, 0);
+  }
+
   // 1. Post-retirement expenses: model the stream over horizonYears starting at retirement date
   for (const bucket of buckets) {
     const bucketInflation = getBucketInflationRate(bucket, input.assumptions.generalInflation);
     const cityAdjustment = CITY_ADJUSTED_BUCKETS.includes(bucket) ? costRatio : 1;
-    const annualExpenseToday = annualize(input.expenses[bucket]) * cityAdjustment;
+    
+    // For housing, we separate the continuing portion (which inflates) from the EMI (which does not inflate, and clears).
+    let annualExpenseToday = annualize(input.expenses[bucket]) * cityAdjustment;
+    let continuingAnnualExpenseToday = annualExpenseToday;
 
-    // Inflate the annual expense from today up to retirement date
-    const annualExpenseAtRetirement = annualExpenseToday * Math.pow(1 + bucketInflation, yearsToRetirement);
+    if (bucket === "housing" && totalHomeLoanEMIToday > 0) {
+      // Isolate continuing costs, clamping at 0 in case EMI somehow exceeds total recorded housing bucket
+      continuingAnnualExpenseToday = annualize(Math.max(0, input.expenses.housing - totalHomeLoanEMIToday)) * cityAdjustment;
+    }
+
+    // Inflate the continuing expense from today up to retirement date
+    const continuingAnnualExpenseAtRetirement = continuingAnnualExpenseToday * Math.pow(1 + bucketInflation, yearsToRetirement);
 
     for (let y = 1; y <= horizonYears; y++) {
       const discountFactor = Math.pow(1 + portfolioReturn, y);
       const totalYearFromToday = yearsToRetirement + y;
 
-      // Check if debt payoff overrides housing bucket in this specific retirement year.
-      // We only override if there is actually a "home" loan; otherwise we'd incorrectly wipe out rent.
-      // If the loan is cleared, the debt engine stops recording, so we carry forward 0.
-      let debtOverride: number | undefined = undefined;
-      const hasHomeLoan = input.debtClearance?.loans.some((l) => l.type === "home");
-      
-      if (bucket === "housing" && hasHomeLoan && debtOutput?.housingExpenseByYear) {
+      let expenseInYear = continuingAnnualExpenseAtRetirement * Math.pow(1 + bucketInflation, y);
+
+      // Check if debt payoff adds a home EMI component in this specific retirement year.
+      if (bucket === "housing" && totalHomeLoanEMIToday > 0 && debtOutput?.housingExpenseByYear) {
         const recordedYears = Object.keys(debtOutput.housingExpenseByYear).map(Number);
         const lastRecordedYear = recordedYears.length ? Math.max(...recordedYears) : 0;
-        debtOverride =
-          totalYearFromToday <= lastRecordedYear
-            ? debtOutput.housingExpenseByYear[totalYearFromToday] || 0
-            : 0; // Loan cleared, EMI is 0
-      }
-
-      let expenseInYear: number;
-      if (debtOverride !== undefined) {
-        expenseInYear = annualize(debtOverride);
-      } else {
-        expenseInYear = annualExpenseAtRetirement * Math.pow(1 + bucketInflation, y);
+        const activeEmiForYear = totalYearFromToday <= lastRecordedYear
+          ? debtOutput.housingExpenseByYear[totalYearFromToday] || 0
+          : 0; // Loan cleared, EMI is 0
+          
+        expenseInYear += annualize(activeEmiForYear);
       }
 
       const discountedToRetirement = expenseInYear / discountFactor;

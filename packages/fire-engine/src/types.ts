@@ -135,6 +135,8 @@ export interface FireEngineInput {
   debtClearance?: DebtClearanceInput;
   /** Optional — when present, these are injected into the Monte Carlo simulation (Module H) as probability-weighted retirement-year events. */
   shocks?: ShockEventConfig[];
+  /** Preserves provenance of whether this input includes mock/fallback data. */
+  isMockData?: boolean;
 }
 
 export interface MonteCarloResult {

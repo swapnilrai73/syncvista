@@ -180,7 +180,7 @@ import { runDebtClearanceEngine } from "../src/debt-engine";
 import type { FireEngineInput, DebtClearanceInput } from "../src/types";
 
 describe("Post-Debt Housing Expense Spike", () => {
-  it("should not spike housing expenses after debt is cleared", () => {
+  it("should separate continuing housing costs from debt EMI and not spike expenses", () => {
     const debtInput: DebtClearanceInput = {
       loans: [
         {
@@ -213,7 +213,7 @@ describe("Post-Debt Housing Expense Spike", () => {
         general: 40000,
         healthcare: 10000,
         education: 15000,
-        housing: 20000, // same as EMI
+        housing: 30000, // 20000 EMI + 10000 continuing
         techDurables: 5000,
       },
       goals: [],
@@ -240,18 +240,13 @@ describe("Post-Debt Housing Expense Spike", () => {
       debtClearance: debtInput,
     };
 
-    // Calculate present value with and without debt
-    const { bucketedContribution: withoutDebt } = calculateBucketedPresentValue(input);
+    const { bucketedContribution: withoutDebt } = calculateBucketedPresentValue({ ...input, debtClearance: undefined });
     const { bucketedContribution: withDebt } = calculateBucketedPresentValue(input, debtOutput);
 
-    // The housing contribution with debt should be LESS than or equal to the one without debt
-    // because the debt clears before retirement (at year 10 it's around month 61, so ~5 years).
-    // So in retirement (years 11 to 40), the housing EMI is 0!
-    // BUT due to the bug, it spikes back to the full inflated housing cost.
-    console.log("Housing without debt:", withoutDebt.housing);
-    console.log("Housing with debt:", withDebt.housing);
-
+    // withDebt.housing should be less than withoutDebt.housing because EMI part doesn't inflate and ends
     expect(withDebt.housing).toBeLessThan(withoutDebt.housing);
+    // but it should NOT be zero or close to zero, because the 10k continuing cost remains
+    expect(withDebt.housing).toBeGreaterThan(0);
   });
 });
 import { describe, it, expect } from "./test-utils";

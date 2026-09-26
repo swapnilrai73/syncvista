@@ -56,12 +56,13 @@ export function rankRecommendations(
 
     switch (opp.type) {
       case "HIGH_INTEREST_DEBT":
+      case "OUTSTANDING_CREDIT_BALANCE":
         actionType = "PREPAY_DEBT";
         effortLevel = "MEDIUM";
-        // Assuming ~36% APR on credit cards -> impact is 36% of the debt over a year
-        estimatedImpactValue = Math.round(opp.detectedValue * 0.36);
+        // Cannot compute impact value without knowing actual APR.
+        estimatedImpactValue = 0;
         title = `Pay off ${opp.metadata.accountName || "Credit Card"}`;
-        description = `Clear this debt immediately to guarantee a ~36% annualized return.`;
+        description = `Consider paying down this debt to avoid potential interest.`;
         break;
 
       case "LOW_EMERGENCY_FUND":
@@ -75,10 +76,10 @@ export function rankRecommendations(
       case "EXCESS_IDLE_CASH":
         actionType = "INVEST_SURPLUS";
         effortLevel = "LOW";
-        // Assuming idle cash earns 3% in savings, but could earn 10% in index -> 7% spread
-        estimatedImpactValue = Math.round(opp.detectedValue * 0.07);
+        // Cannot guess market spread. Impact unknown without a specific investment plan.
+        estimatedImpactValue = 0;
         title = `Invest Idle Cash`;
-        description = `Deploy ₹${opp.detectedValue.toLocaleString()} to prevent inflation decay.`;
+        description = `Consider deploying ₹${opp.detectedValue.toLocaleString()} to prevent inflation decay.`;
         break;
 
       default:
@@ -103,26 +104,7 @@ export function rankRecommendations(
   // Filter out recommendations that failed the Policy Gate
   const clearedRecommendations = recommendations.filter(r => r.regulatoryClearance);
 
-  // Score function for sorting
-  const getRankScore = (rec: FinancialRecommendation, opp: FinancialOpportunity): number => {
-    // Highest priority: Critical High Interest Debt
-    if (rec.actionType === "PREPAY_DEBT" && opp.severity === "CRITICAL") return 10000 + rec.estimatedImpactValue;
-    if (rec.actionType === "PREPAY_DEBT") return 9000 + rec.estimatedImpactValue;
-    
-    // Second priority: Emergency Fund
-    if (rec.actionType === "LIQUIDATE_TO_EMERGENCY_FUND" && opp.severity === "CRITICAL") return 8000 + rec.estimatedImpactValue;
-    if (rec.actionType === "LIQUIDATE_TO_EMERGENCY_FUND") return 7000 + rec.estimatedImpactValue;
-
-    // Third priority: Idle Cash
-    if (rec.actionType === "INVEST_SURPLUS") return 5000 + rec.estimatedImpactValue;
-
-    return rec.estimatedImpactValue;
-  };
-
-  // Sort descending by rank score
-  return clearedRecommendations.sort((a, b) => {
-    const oppA = opportunities.find(o => o.id === a.opportunityId)!;
-    const oppB = opportunities.find(o => o.id === b.opportunityId)!;
-    return getRankScore(b, oppB) - getRankScore(a, oppA);
-  });
+  // Return the candidates without claiming a financially superior arbitrary ranking.
+  // Preserving detector order provides deterministic stability without false priority.
+  return clearedRecommendations;
 }
