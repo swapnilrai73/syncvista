@@ -16,7 +16,6 @@ export const getAccounts = async ({ userId }: getAccountsProps) => {
 
     // If no banks from Firestore or error, return mock data
     if (!banks || banks.length === 0) {
-      console.log("No banks found in Firestore, returning mock data");
       const mockAccounts = MOCK_BANK_ACCOUNTS.map((bank: any) => ({
         id: bank.accountId,
         availableBalance: (bank as any).availableBalance ?? (bank as any).currentBalance ?? 0,
@@ -29,14 +28,13 @@ export const getAccounts = async ({ userId }: getAccountsProps) => {
         subtype: (bank as any).subtype || "bank",
         bankDocumentId: bank.bankDocumentId,
         shareableId: bank.shareableId,
+        mock: true, // Explicit provenance
       }));
 
       const totalBanks = mockAccounts.length;
-      const totalCurrentBalance = mockAccounts.reduce((total, account) => {
-        return total + account.currentBalance;
-      }, 0);
+      const totalCurrentBalance = mockAccounts.reduce((total, account) => total + account.currentBalance, 0);
 
-      return parseStringify({ data: mockAccounts, totalBanks, totalCurrentBalance });
+      return parseStringify({ data: mockAccounts, totalBanks, totalCurrentBalance, isFallback: true });
     }
 
     const accounts = await Promise.all(
@@ -86,7 +84,6 @@ export const getAccounts = async ({ userId }: getAccountsProps) => {
     );
 
     if (hasInvalidAccounts) {
-      console.log("Found accounts with missing balance or required fields, returning mock data");
       const mockAccounts = MOCK_BANK_ACCOUNTS.map((bank: any) => ({
         id: bank.accountId,
         availableBalance: (bank as any).availableBalance ?? (bank as any).currentBalance ?? 0,
@@ -99,14 +96,13 @@ export const getAccounts = async ({ userId }: getAccountsProps) => {
         subtype: (bank as any).subtype || "bank",
         bankDocumentId: bank.bankDocumentId,
         shareableId: bank.shareableId,
+        mock: true, // Explicit provenance
       }));
 
       const totalBanks = mockAccounts.length;
-      const totalCurrentBalance = mockAccounts.reduce((total, account) => {
-        return total + account.currentBalance;
-      }, 0);
+      const totalCurrentBalance = mockAccounts.reduce((total, account) => total + account.currentBalance, 0);
 
-      return parseStringify({ data: mockAccounts, totalBanks, totalCurrentBalance });
+      return parseStringify({ data: mockAccounts, totalBanks, totalCurrentBalance, isFallback: true });
     }
 
     const totalBanks = accounts.length;
@@ -135,12 +131,11 @@ export const getAccounts = async ({ userId }: getAccountsProps) => {
       subtype: (bank as any).subtype || "bank",
       bankDocumentId: bank.bankDocumentId,
       shareableId: bank.shareableId,
+      mock: true, // Explicit provenance
     }));
 
     const totalBanks = mockAccounts.length;
-    const totalCurrentBalance = mockAccounts.reduce((total, account) => {
-      return total + account.currentBalance;
-    }, 0);
+    const totalCurrentBalance = mockAccounts.reduce((total, account) => total + account.currentBalance, 0);
 
     return parseStringify({ data: mockAccounts, totalBanks, totalCurrentBalance, isFallback: true });
   }
@@ -226,6 +221,7 @@ export const getAccount = async ({ bankDocumentId }: getAccountProps) => {
             category: transferData.category || "General",
             type: transferData.type || (candidateKeys.has(transferData.senderBankId) ? "debit" : "credit"),
             bankDocumentId: bank.$id,
+            mock: true, // Explicit provenance
           })
         );
       } else {
@@ -337,7 +333,7 @@ export const getAllTransactions = async ({ userId }: getAccountsProps) => {
     // If no banks from Firestore, return mock transactions
     if (!banks || banks.length === 0) {
       console.log("No banks found in Firestore, returning mock transactions");
-      return parseStringify(MOCK_TRANSACTIONS);
+      return parseStringify(MOCK_TRANSACTIONS.map(t => ({ ...t, mock: true })));
     }
     
     // Check if any bank is mock data - if so, query Firestore transactions directly
@@ -365,7 +361,7 @@ export const getAllTransactions = async ({ userId }: getAccountsProps) => {
       
       if (bankIdsArray.length === 0) {
         console.log("No bank IDs found, returning mock transactions");
-        return parseStringify(MOCK_TRANSACTIONS);
+        return parseStringify(MOCK_TRANSACTIONS.map(t => ({ ...t, mock: true })));
       }
       
       // Query transactions where senderBankId or receiverBankId matches any of the user's banks
@@ -399,7 +395,7 @@ export const getAllTransactions = async ({ userId }: getAccountsProps) => {
       // If no transactions found in Firestore, return mock data
       if (allTransactions.length === 0) {
         console.log("No transactions found in Firestore, returning mock transactions");
-        return parseStringify(MOCK_TRANSACTIONS);
+        return parseStringify(MOCK_TRANSACTIONS.map(t => ({ ...t, mock: true })));
       }
       
       const sortedTransactions = allTransactions.sort(
@@ -446,7 +442,7 @@ export const getAllTransactions = async ({ userId }: getAccountsProps) => {
     // If no transactions from Setu, return mock data
     if (flattenedTransactions.length === 0) {
       console.log("No transactions from Setu, returning mock transactions");
-      return parseStringify(MOCK_TRANSACTIONS);
+      return parseStringify(MOCK_TRANSACTIONS.map(t => ({ ...t, mock: true })));
     }
     
     const sortedTransactions = flattenedTransactions.sort(
@@ -458,6 +454,6 @@ export const getAllTransactions = async ({ userId }: getAccountsProps) => {
     console.error("An error occurred while getting all transactions:", error);
     // Return mock data on error
     console.log("Error fetching transactions, returning mock transactions");
-    return parseStringify(MOCK_TRANSACTIONS);
+    return parseStringify(MOCK_TRANSACTIONS.map(t => ({ ...t, mock: true })));
   }
 };

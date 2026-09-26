@@ -57,6 +57,7 @@ const getSetuAccessToken = async (config: SetuConfig) => {
 };
 
 const getMockAccountData = () => ({
+  mock: true,
   bankName: "SyncVista Demo Bank",
   accountNumber: "9876543210",
   accountId: "mock-account-9876543210",
@@ -80,6 +81,7 @@ const getMockAccountData = () => ({
       category: "Income",
       date: "2026-08-01",
       pending: false,
+      mock: true, // Explicit provenance
     },
     {
       id: "mock-transaction-2",
@@ -91,6 +93,7 @@ const getMockAccountData = () => ({
       category: "Food and Drink",
       date: "2026-08-12",
       pending: false,
+      mock: true, // Explicit provenance
     },
   ],
 });
