@@ -14,6 +14,7 @@ import "./utils.test";
 import "./analytics.test";
 import "./bank-logic.test";
 import "./chat-compliance.test";
+import "./intelligence.test";
 
 async function main() {
   console.log("=================================================");

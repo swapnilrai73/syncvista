@@ -310,13 +310,13 @@ export const getAllTransactions = async ({ userId }: getAccountsProps) => {
         if (bank.accountId) bankIds.add(bank.accountId);
         if ((bank as any).bankDocumentId) bankIds.add((bank as any).bankDocumentId);
         if ((bank as any).shareableId) bankIds.add((bank as any).shareableId);
-        const name = (bank.name || bank.officialName || "").toLowerCase();
+        const name = ((bank as any).name || (bank as any).officialName || "").toLowerCase();
         if (name.includes("hdfc")) bankIds.add("bank_hdfc_savings");
         if (name.includes("icici")) bankIds.add("bank_icici_salary");
-        if (name.includes("neo") || (name.includes("axis") && (bank.type === "credit" || bank.subtype === "credit_card"))) {
+        if (name.includes("neo") || (name.includes("axis") && ((bank as any).type === "credit" || (bank as any).subtype === "credit_card"))) {
           bankIds.add("cc_axis_neo");
         }
-        if (name.includes("liberty") || (name.includes("axis") && bank.type !== "credit")) {
+        if (name.includes("liberty") || (name.includes("axis") && (bank as any).type !== "credit")) {
           bankIds.add("bank_axis_savings");
         }
       });
