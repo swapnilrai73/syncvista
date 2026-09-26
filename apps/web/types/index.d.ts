@@ -121,6 +121,64 @@ declare type Bank = {
   accountData?: any;
 };
 
+// Canonical Data Boundary for all Analytics and Intelligence processing
+declare type FinancialSnapshot = {
+  // Authoritative server-derived identity
+  userId: string;
+  
+  // Point-in-time reference
+  timestamp: string;
+  
+  // Raw Data (Strictly validated)
+  accounts: Account[];
+  transactions: NormalizedTransaction[];
+  investmentSummary?: InvestmentSummary;
+  
+  // Data Quality & Safety Metadata
+  containsMockData: boolean;
+};
+
+// ==========================================
+// INTELLIGENCE LAYER CONTRACTS (Phases 7 & 8)
+// ==========================================
+
+declare type OpportunityType = 
+  | "LOW_EMERGENCY_FUND"
+  | "HIGH_INTEREST_DEBT"
+  | "EXCESS_IDLE_CASH"
+  | "TAX_HARVEST_AVAILABLE"
+  | "CONCENTRATION_RISK";
+
+declare type FinancialOpportunity = {
+  id: string;
+  type: OpportunityType;
+  severity: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
+  title: string;
+  description: string;
+  detectedValue: number; // e.g., the amount of idle cash, or the size of the gap
+  metadata: Record<string, any>; // specifically typed in implementation if needed (e.g., related account IDs)
+  createdAt: string;
+};
+
+declare type ActionType = 
+  | "LIQUIDATE_TO_EMERGENCY_FUND"
+  | "PREPAY_DEBT"
+  | "INVEST_SURPLUS"
+  | "EXECUTE_TAX_HARVEST"
+  | "REBALANCE_PORTFOLIO";
+
+declare type FinancialRecommendation = {
+  id: string;
+  opportunityId: string; // Links back to the deterministic observation
+  actionType: ActionType;
+  title: string;
+  description: string;
+  estimatedImpactValue: number; // Mathematically derived, not guessed by AI (e.g., interest saved)
+  effortLevel: "LOW" | "MEDIUM" | "HIGH";
+  confidenceScore: number; // 0-100, purely based on data coverage and freshness
+  regulatoryClearance: boolean; // Must pass Policy Gate
+};
+
 declare type AccountTypes =
   | "depository"
   | "credit"

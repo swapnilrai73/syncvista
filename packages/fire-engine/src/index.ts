@@ -118,4 +118,4 @@ export function runFireEngine(input: FireEngineInput): FireEngineOutput {
     debtComparison,
     liquidityBucketPlan,
   };
-}
+}export * from "./adapter";
