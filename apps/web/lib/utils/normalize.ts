@@ -8,7 +8,7 @@ export function normalizeSetuTransaction(raw: SetuTransaction): NormalizedTransa
     source: "setu",
     name: raw.description || raw.narration || raw.name || "Transaction",
     amount: Math.abs(rawAmount),
-    currency: "INR", // Setu transactions are domestic Indian
+    currency: (raw as any).currency || undefined, // missing if unknown, do not assume INR
     date: raw.date || raw.transactionDate || new Date().toISOString(),
     category: raw.category || "General",
     type: (raw.type === "CREDIT" || raw.type === "credit") ? "credit" : "debit",
@@ -24,7 +24,7 @@ export function normalizeFirebaseTransfer(raw: FirebaseTransferTransaction, cont
     source: "firebase",
     name: raw.name,
     amount: Math.abs(raw.amount),
-    currency: "INR", // SyncVista transfers are domestic Indian
+    currency: (raw as any).currency || undefined, // missing if unknown, do not assume INR
     date: raw.$createdAt,
     category: raw.category || "Transfer",
     type: (contextBankId && raw.senderBankId === contextBankId) ? "debit" : "credit",
@@ -50,7 +50,7 @@ export function normalizeMockTransaction(raw: any, candidateKeys?: Set<string>, 
     source: "mock",
     name: raw.name || "Mock Transaction",
     amount: Math.abs(rawAmount),
-    currency: raw.currency || "INR",
+    currency: raw.currency || undefined, // missing if unknown, do not assume INR
     date: raw.date || raw.$createdAt || new Date().toISOString(),
     category: raw.category || "General",
     type,

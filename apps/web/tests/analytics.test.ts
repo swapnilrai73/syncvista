@@ -10,42 +10,58 @@ import {
 } from "../lib/analytics/engine";
 
 describe("Analytics Engine: Credit Transaction Detection (isCreditTransaction)", () => {
-  it("identifies transactions by explicit credit/debit type strings", () => {
-    expect(isCreditTransaction({ type: "credit" })).toBe(true);
-    expect(isCreditTransaction({ type: "inflow" })).toBe(true);
-    expect(isCreditTransaction({ type: "cr" })).toBe(true);
-    expect(isCreditTransaction({ transactionType: "income" })).toBe(true);
-
-    expect(isCreditTransaction({ type: "debit" })).toBe(false);
-    expect(isCreditTransaction({ type: "outflow" })).toBe(false);
-    expect(isCreditTransaction({ type: "expense" })).toBe(false);
-    expect(isCreditTransaction({ type: "dr" })).toBe(false);
-  });
-
-  it("detects credit transactions by category heuristics", () => {
-    expect(isCreditTransaction({ category: "Salary" })).toBe(true);
-    expect(isCreditTransaction({ category: "Rental Income" })).toBe(true);
-    expect(isCreditTransaction({ category: "Cash Deposit" })).toBe(true);
-    expect(isCreditTransaction({ category: "Bank Transfer" })).toBe(true);
-
-    expect(isCreditTransaction({ category: "Dining" })).toBe(false);
-    expect(isCreditTransaction({ category: "Groceries" })).toBe(false);
-  });
-
-  it("identifies Indian banking narration keywords in description/name", () => {
-    expect(isCreditTransaction({ name: "SALARY CREDITED FOR MARCH" })).toBe(true);
-    expect(isCreditTransaction({ name: "UPI/CR/12345678/REFUND" })).toBe(true);
+  it("semantically classifies legitimate income vs non-income credit card payments", () => {
+    // Legitimate Income
+    expect(isCreditTransaction({ type: "credit", name: "Salary Credit" })).toBe(true);
+    expect(isCreditTransaction({ type: "credit", name: "Interest Credit" })).toBe(true);
+    expect(isCreditTransaction({ type: "credit", name: "Dividend Credit" })).toBe(true);
     expect(isCreditTransaction({ name: "NEFT CR-HDFC0001234-COMPANY" })).toBe(true);
-    expect(isCreditTransaction({ name: "IMPS CR 987654" })).toBe(true);
-    expect(isCreditTransaction({ name: "Swiggy Order Refund" })).toBe(true);
+    expect(isCreditTransaction({ name: "UPI/CR/12345678/REFUND" })).toBe(true);
 
-    expect(isCreditTransaction({ name: "Amazon India Marketplace" })).toBe(false);
-    expect(isCreditTransaction({ name: "Uber Trip" })).toBe(false);
+    // NOT Income (Credit Card Payments)
+    expect(isCreditTransaction({ type: "credit", name: "Credit Card Bill Payment" })).toBe(false);
+    expect(isCreditTransaction({ type: "credit", name: "Credit Card EMI Payment" })).toBe(false);
+    expect(isCreditTransaction({ type: "credit", name: "Credit Card Payment" })).toBe(false);
+    expect(isCreditTransaction({ category: "Credit Card Payment" })).toBe(false);
   });
 
-  it("detects negative polarity numbers as credits", () => {
+  it("distinguishes self-transfers from external transfers", () => {
+    // Self-transfer is NOT income
+    expect(isCreditTransaction({ 
+      type: "credit", 
+      name: "Transfer from HDFC", 
+      category: "Transfer", 
+      senderBankId: "bank_hdfc", 
+      receiverBankId: "bank_hdfc" 
+    })).toBe(false);
+
+    // External incoming transfer with explicit credit type IS income
+    expect(isCreditTransaction({ 
+      type: "credit", 
+      name: "Transfer from Employer", 
+      category: "Transfer", 
+      senderBankId: "ext_bank", 
+      receiverBankId: "bank_hdfc" 
+    })).toBe(true);
+
+    // External outgoing transfer is NOT income
+    expect(isCreditTransaction({ 
+      type: "debit", 
+      name: "Transfer to Friend", 
+      category: "Transfer" 
+    })).toBe(false);
+
+    // Unknown transfer with insufficient info is NOT confidently income
+    expect(isCreditTransaction({ 
+      name: "Transfer to unknown", 
+      category: "Transfer" 
+    })).toBe(false);
+  });
+
+  it("detects negative polarity numbers as credits (legacy), excluding unknown transfers", () => {
     expect(isCreditTransaction({ amount: -5000 })).toBe(true);
     expect(isCreditTransaction({ amount: 5000, type: "debit" })).toBe(false);
+    expect(isCreditTransaction({ amount: -5000, category: "Transfer" })).toBe(false);
   });
 });
 

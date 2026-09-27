@@ -202,12 +202,22 @@ export function normalizeTransactionDirection(
   if (["credit", "inflow", "income", "cr"].includes(type)) return "credit";
   if (["debit", "outflow", "expense", "dr"].includes(type)) return "debit";
 
+  // 1b. Exclusion: Credit Card Bill from savings is a debit.
+  if (
+    name.includes("credit card bill") ||
+    name.includes("credit card payment") ||
+    name.includes("credit card emi") ||
+    category === "credit card payment"
+  ) {
+    // If not explicitly caught by type above, assume it's an outgoing payment (debit).
+    return "debit";
+  }
+
   // 2. Category keyword
   if (
     category.includes("income") ||
     category.includes("salary") ||
-    category.includes("deposit") ||
-    category.includes("transfer")
+    category.includes("deposit")
   ) {
     return "credit";
   }
@@ -218,15 +228,18 @@ export function normalizeTransactionDirection(
     name.includes("upi/cr") ||
     name.includes("neft cr") ||
     name.includes("imps cr") ||
-    name.includes("credit") ||
     name.includes("deposit") ||
-    name.includes("refund")
+    name.includes("refund") ||
+    name.includes("dividend") ||
+    name.includes("interest")
   ) {
     return "credit";
   }
 
   // 4. Negative amount polarity (schema stores income as negative in some feeds)
-  if (!isNaN(amount) && amount < 0) return "credit";
+  // But if it's a generic transfer, negative amount in some systems is an outgoing transfer (debit).
+  // Actually, wait, if amount < 0 means credit in some feeds, we use it, but exclude "transfer" if we aren't sure.
+  if (!isNaN(amount) && amount < 0 && !category.includes("transfer")) return "credit";
 
   // 5. Default
   return "debit";

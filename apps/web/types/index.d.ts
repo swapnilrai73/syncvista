@@ -65,7 +65,7 @@ declare type NormalizedTransaction = {
   id: string; // our internal normalized ID
   name: string; // merchant/narration
   amount: number; // absolute magnitude
-  currency: string; // required
+  currency?: string; // missing if unknown, do not silently assume INR
   date: string;
   category: string;
   type: "credit" | "debit"; // explicitly separate direction
@@ -162,6 +162,7 @@ declare type FinancialOpportunity = {
   detectedValue: number; // e.g., the amount of idle cash, or the size of the gap
   metadata: Record<string, any>; // specifically typed in implementation if needed (e.g., related account IDs)
   createdAt: string;
+  containsMockData?: boolean; // preserves mock/fallback provenance
 };
 
 declare type ActionType = 
@@ -186,7 +187,7 @@ declare type FinancialRecommendation = {
 declare type AccountTypes =
   | "depository"
   | "credit"
-  | "loan "
+  | "loan"
   | "investment"
   | "other";
 

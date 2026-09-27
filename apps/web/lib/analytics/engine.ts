@@ -46,35 +46,62 @@ export function isCreditTransaction(t: any): boolean {
   const category = String(t.category || '').toLowerCase();
   const name = String(t.name || t.description || '').toLowerCase();
 
-  // 1. Explicit Type Flags
-  if (['credit', 'inflow', 'income', 'cr'].includes(type)) return true;
+  // 1. Exclude Semantic Non-Income Outflows/Transfers
+  // If we know both sender and receiver belong to the same user, it is a self-transfer, NEVER income.
+  if (t.senderBankId && t.receiverBankId && t.senderBankId === t.receiverBankId) {
+    return false; 
+  }
+
+  // 2. Exclude Credit Card Bill / EMI Payments
+  // These represent debt clearance, not new income, even if they show up as a 'credit' to the CC account.
+  if (
+    name.includes('credit card bill') ||
+    name.includes('credit card payment') ||
+    name.includes('credit card emi') ||
+    category === 'credit card payment'
+  ) {
+    return false;
+  }
+
+  // 3. Explicit Outflow Checks
   if (['debit', 'outflow', 'expense', 'dr'].includes(type)) return false;
 
-  // 2. Category Checks (Includes substring matches)
+  // 4. Legitimate Income Semantics
+  // If the transaction explicitly indicates incoming money and isn't caught by exclusions
+  if (['credit', 'inflow', 'income', 'cr'].includes(type)) {
+    // If it's a generic transfer, check if it's an external incoming one (which we assume true if type is credit and not caught by self-transfer check above).
+    // However, if the category is transfer but type is unknown, we shouldn't assume income.
+    return true; 
+  }
+
+  // 5. Category Checks for Income (if type was missing)
   if (
     category.includes('income') || 
     category.includes('salary') || 
-    category.includes('deposit') ||
-    category.includes('transfer')
+    category.includes('deposit')
   ) {
     return true;
   }
 
-  // 3. Name & Keyword Matching for Uncategorized HDFC Credits
+  // Note: We deliberately removed category.includes('transfer') here. 
+  // An unknown transfer without a 'credit' type must not confidently be assumed as income.
+
+  // 6. Name & Keyword Matching for Uncategorized Credits
   if (
     name.includes('salary') ||
     name.includes('upi/cr') ||
     name.includes('neft cr') ||
     name.includes('imps cr') ||
-    name.includes('credit') ||
-    name.includes('deposit') ||
-    name.includes('refund')
+    name.includes('refund') ||
+    name.includes('dividend') ||
+    name.includes('interest')
   ) {
     return true;
   }
+  // Note: We deliberately removed name.includes('credit') from this loose generic check to prevent matching "Credit Card...".
 
-  // 4. Negative Polarity Check (if schema stores expenses as + and income as -)
-  if (typeof t.amount === 'number' && t.amount < 0) {
+  // 7. Negative Polarity Check (legacy fallback)
+  if (typeof t.amount === 'number' && t.amount < 0 && !category.includes('transfer')) {
     return true;
   }
 
