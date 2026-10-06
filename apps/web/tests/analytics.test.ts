@@ -7,6 +7,7 @@ import {
   calculateNetWorth,
   calculateMonthlyCashFlow,
   analyzeCASPortfolio,
+  isNeutralTransaction,
 } from "../lib/analytics/engine";
 
 describe("Analytics Engine: Credit Transaction Detection (isCreditTransaction)", () => {
@@ -25,37 +26,83 @@ describe("Analytics Engine: Credit Transaction Detection (isCreditTransaction)",
     expect(isCreditTransaction({ category: "Credit Card Payment" })).toBe(false);
   });
 
-  it("distinguishes self-transfers from external transfers", () => {
-    // Self-transfer is NOT income
-    expect(isCreditTransaction({ 
-      type: "credit", 
-      name: "Transfer from HDFC", 
+  it("P0-3 Regression Matrix: Transfer / Self-Transfer Semantics based on exact ownership", () => {
+    // We define a set of user accounts
+    const userBanks = new Set(["user_hdfc", "user_icici"]);
+
+    // 1. User HDFC -> User ICICI => NOT income, IS neutral
+    const t1 = { category: "Transfer", senderBankId: "user_hdfc", receiverBankId: "user_icici", amount: 50000 };
+    expect(isCreditTransaction(t1, userBanks)).toBe(false);
+    expect(isNeutralTransaction(t1, userBanks)).toBe(true); // Cross-bank self-transfer (Case 13)
+
+    // 2. User ICICI -> User HDFC => NOT income, IS neutral
+    const t2 = { category: "Transfer", senderBankId: "user_icici", receiverBankId: "user_hdfc", amount: 50000 };
+    expect(isCreditTransaction(t2, userBanks)).toBe(false);
+    expect(isNeutralTransaction(t2, userBanks)).toBe(true);
+
+    // 3. User HDFC -> User HDFC => NOT income, IS neutral (Case 12)
+    const t3 = { category: "Transfer", senderBankId: "user_hdfc", receiverBankId: "user_hdfc", amount: 50000 };
+    expect(isCreditTransaction(t3, userBanks)).toBe(false);
+    expect(isNeutralTransaction(t3, userBanks)).toBe(true);
+
+    // 4. User HDFC -> Friend HDFC => NOT self-transfer (Case 14: Same-bank external)
+    const t4 = { category: "Transfer", senderBankId: "user_hdfc", receiverBankId: "friend_hdfc", amount: 50000 };
+    expect(isNeutralTransaction(t4, userBanks)).toBe(true); // Unknown transfer is neutral (not self-transfer, not expense)
+    expect(isCreditTransaction(t4, userBanks)).toBe(false);
+
+    // 5. User HDFC -> Friend ICICI => NOT self-transfer
+    const t5 = { category: "Transfer", senderBankId: "user_hdfc", receiverBankId: "friend_icici", amount: 50000 };
+    expect(isNeutralTransaction(t5, userBanks)).toBe(true); // Unknown ownership -> neutral
+
+    // 6. Friend HDFC -> User HDFC => may be income only when existing semantics support it
+    // If it has type='credit', it becomes income
+    const t6 = { category: "Transfer", type: "credit", senderBankId: "friend_hdfc", receiverBankId: "user_hdfc", amount: 50000 };
+    expect(isCreditTransaction(t6, userBanks)).toBe(true);
+
+    // 7. External incoming transfer with explicit incoming semantics => remains eligible for income
+    const t7 = { name: "Salary", type: "credit", senderBankId: "employer_bank", receiverBankId: "user_icici", amount: 100000 };
+    expect(isCreditTransaction(t7, userBanks)).toBe(true);
+
+    // 8. External outgoing transfer => NOT income
+    const t8 = { type: "debit", category: "Transfer", senderBankId: "user_hdfc", receiverBankId: "friend_icici", amount: 50000 };
+    expect(isCreditTransaction(t8, userBanks)).toBe(false);
+
+    // 9. Transfer with unknown ownership => NOT confidently classified as income
+    const t9 = { category: "Transfer", senderBankId: undefined, receiverBankId: undefined, amount: 50000 };
+    expect(isCreditTransaction(t9, userBanks)).toBe(false);
+    // And it is treated as neutral (not expense)
+    expect(isNeutralTransaction(t9, userBanks)).toBe(true);
+
+    // 10. ₹2,00,000 own-account transfer => income must remain unchanged
+    const t10 = { category: "Transfer", senderBankId: "user_hdfc", receiverBankId: "user_icici", amount: 200000 };
+    expect(isCreditTransaction(t10, userBanks)).toBe(false);
+    expect(isNeutralTransaction(t10, userBanks)).toBe(true);
+
+    // 11. Multiple own-account transfers => income must remain unchanged
+    const t11a = { category: "Transfer", senderBankId: "user_icici", receiverBankId: "user_hdfc", amount: 100000 };
+    const t11b = { category: "Transfer", senderBankId: "user_hdfc", receiverBankId: "user_icici", amount: 50000 };
+    expect(isCreditTransaction(t11a, userBanks)).toBe(false);
+    expect(isNeutralTransaction(t11a, userBanks)).toBe(true);
+    expect(isCreditTransaction(t11b, userBanks)).toBe(false);
+    expect(isNeutralTransaction(t11b, userBanks)).toBe(true);
+
+    // 14. Self-transfer inside forecast
+    // 15. Self-transfer inside category expenses
+    // 16. Self-transfer inside anomaly detection
+    const crossBankTxn = { 
+      date: "2026-09-10", 
+      amount: 50000, 
+      type: "debit",
       category: "Transfer", 
-      senderBankId: "bank_hdfc", 
-      receiverBankId: "bank_hdfc" 
-    })).toBe(false);
-
-    // External incoming transfer with explicit credit type IS income
-    expect(isCreditTransaction({ 
-      type: "credit", 
-      name: "Transfer from Employer", 
-      category: "Transfer", 
-      senderBankId: "ext_bank", 
-      receiverBankId: "bank_hdfc" 
-    })).toBe(true);
-
-    // External outgoing transfer is NOT income
-    expect(isCreditTransaction({ 
-      type: "debit", 
-      name: "Transfer to Friend", 
-      category: "Transfer" 
-    })).toBe(false);
-
-    // Unknown transfer with insufficient info is NOT confidently income
-    expect(isCreditTransaction({ 
-      name: "Transfer to unknown", 
-      category: "Transfer" 
-    })).toBe(false);
+      senderBankId: "user_hdfc", 
+      receiverBankId: "user_icici" 
+    };
+    const health = calculateFinancialHealth([crossBankTxn as any], userBanks);
+    expect(health.topExpenseCategories.length).toBe(0); // Excluded from categories
+    
+    const multipleCrossBankTxns = Array(10).fill(crossBankTxn);
+    const anomalies = detectAnomalies(multipleCrossBankTxns as any[], userBanks);
+    expect(anomalies.length).toBe(0); // Excluded from anomalies
   });
 
   it("detects negative polarity numbers as credits (legacy), excluding unknown transfers", () => {
@@ -326,7 +373,7 @@ describe("Financial Analytics Engine: Deterministic Metric Cross-Checks", () => 
   });
 
   it("cross-checks Assets ₹1,000,000, Liabilities ₹250,000 -> Net Worth ₹750,000", () => {
-    const bankBalances = [{ currentBalance: 400000 }];
+    const bankBalances = [{ currentBalance: 400000, type: "depository" }];
     const investmentSummary = { totalPortfolioValue: 600000 };
     const liabilities = 250000;
 
@@ -338,15 +385,33 @@ describe("Financial Analytics Engine: Deterministic Metric Cross-Checks", () => 
 describe("Analytics Engine: Net Worth & CAS Portfolio Analysis", () => {
   it("calculates net worth preserving legitimate ₹0 bank balances", () => {
     const bankBalances = [
-      { id: "b1", currentBalance: 350000 },
-      { id: "b2", currentBalance: 0 }, // Legitimate ₹0 balance
-      { id: "b3", currentBalance: 150000 },
+      { id: "b1", currentBalance: 350000, type: "depository" },
+      { id: "b2", currentBalance: 0, type: "depository" }, // Legitimate ₹0 balance
+      { id: "b3", currentBalance: 150000, type: "depository" },
     ];
     const investmentSummary = { totalPortfolioValue: 1200000 };
 
     const netWorth = calculateNetWorth(bankBalances, investmentSummary);
     // 3,50,000 + 0 + 1,50,000 + 12,00,000 = 17,00,000
     expect(netWorth).toBe(1700000);
+  });
+
+  it("P0-4 Regression: correctly deducts credit card and loan liabilities from net worth", () => {
+    const bankBalances = [
+      { type: "depository", currentBalance: 10000 },
+      { type: "credit", currentBalance: 5000 },
+      { type: "loan", currentBalance: 2000 }
+    ];
+    // Assets: 10,000. Liabilities: 5,000 + 2,000 = 7,000. Net Worth = 3,000.
+    expect(calculateNetWorth(bankBalances)).toBe(3000);
+    
+    // Overpaid credit card (-1000 balance means 1000 asset)
+    const overpaidBalances = [
+      { type: "depository", currentBalance: 10000 },
+      { subtype: "credit_card", currentBalance: -1000 }
+    ];
+    // Assets: 10,000 + 1000 = 11,000. Net Worth = 11,000.
+    expect(calculateNetWorth(overpaidBalances)).toBe(11000);
   });
 
   it("analyzeCASPortfolio aggregates holdings and combined assets", () => {
@@ -364,6 +429,31 @@ describe("Analytics Engine: Net Worth & CAS Portfolio Analysis", () => {
 });
 
 describe("Analytics Engine: Monthly Cash Flow Grouping", () => {
+  it("P0-1/2 Regression: correctly partitions positive expenses and does not falsely flag them as inflow", () => {
+    const transactions = [
+      { date: "2026-09-01T10:00:00Z", amount: 50000, type: "debit", category: "Shopping", name: "Amazon" }, // expense, positive amount
+      { date: "2026-09-02T10:00:00Z", amount: 50000, type: "credit", name: "Salary Credit" } // legitimate income
+    ];
+
+    const flows = calculateMonthlyCashFlow(transactions, new Set());
+    // Sep 2026
+    const sepFlow = flows.find((f) => f.month.includes("Sep"));
+    expect(sepFlow).toBeDefined();
+    expect(sepFlow!.inflow).toBe(50000); // Only salary
+    expect(sepFlow!.outflow).toBe(50000); // The amazon expense
+  });
+
+  it("P0-3 Regression: incoming external transfers correctly count as inflow and are not dropped as neutral", () => {
+    const transactions = [
+      { date: "2026-09-01T10:00:00Z", amount: 50000, type: "credit", category: "Transfer", name: "Transfer from Friend" }, // Valid incoming transfer
+    ];
+    const userBankIds = new Set(["user_hdfc"]); // Does not include friend's bank
+    const flows = calculateMonthlyCashFlow(transactions, userBankIds);
+    const sepFlow = flows.find((f) => f.month.includes("Sep"));
+    expect(sepFlow).toBeDefined();
+    expect(sepFlow!.inflow).toBe(50000); // Must not be dropped as neutral
+  });
+
   it("correctly partitions monthly inflow, outflow, and net cash flow", () => {
     const transactions: any[] = [
       // March 2026

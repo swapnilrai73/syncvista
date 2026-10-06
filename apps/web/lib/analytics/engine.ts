@@ -39,7 +39,43 @@ export interface CASPortfolioAnalysis {
  * - Top Expense Categories: Top 5 spending categories
  */
 
-export function isCreditTransaction(t: any): boolean {
+export function isNeutralTransaction(t: any, userBankIds?: Set<string> | string[]): boolean {
+  if (!t) return false;
+  
+  const category = String(t.category || '').toLowerCase();
+  const name = String(t.name || t.description || '').toLowerCase();
+
+  // 1. Genuine Self-Transfers (both accounts known and owned by user)
+  if (t.senderBankId && t.receiverBankId && userBankIds) {
+    const ids = userBankIds instanceof Set ? userBankIds : new Set(userBankIds);
+    if (ids.has(t.senderBankId) && ids.has(t.receiverBankId)) {
+      return true; // Explicitly neutral self-transfer
+    }
+  }
+
+  // 2. Unknown Transfers
+  // If it's a transfer but we CANNOT establish ownership of both sides, it's UNKNOWN.
+  // It must not be an expense.
+  if (category.includes('transfer') || name.includes('transfer')) {
+    // Exception: If it's explicitly identified as income (e.g. salary transfer), it will be handled by isCreditTransaction.
+    // For expense vs neutral determination, unknown transfers are neutral.
+    return true;
+  }
+
+  // 3. Credit card payments are neutral (they are balance sheet movements, not expenses)
+  if (
+    name.includes('credit card bill') ||
+    name.includes('credit card payment') ||
+    name.includes('credit card emi') ||
+    category === 'credit card payment'
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+export function isCreditTransaction(t: any, userBankIds?: Set<string> | string[]): boolean {
   if (!t) return false;
 
   const type = String(t.type || t.transactionType || '').toLowerCase();
@@ -47,13 +83,15 @@ export function isCreditTransaction(t: any): boolean {
   const name = String(t.name || t.description || '').toLowerCase();
 
   // 1. Exclude Semantic Non-Income Outflows/Transfers
-  // If we know both sender and receiver belong to the same user, it is a self-transfer, NEVER income.
-  if (t.senderBankId && t.receiverBankId && t.senderBankId === t.receiverBankId) {
-    return false; 
+  // Genuine Self-Transfers
+  if (t.senderBankId && t.receiverBankId && userBankIds) {
+    const ids = userBankIds instanceof Set ? userBankIds : new Set(userBankIds);
+    if (ids.has(t.senderBankId) && ids.has(t.receiverBankId)) {
+      return false; // Self-transfer, NEVER income
+    }
   }
 
   // 2. Exclude Credit Card Bill / EMI Payments
-  // These represent debt clearance, not new income, even if they show up as a 'credit' to the CC account.
   if (
     name.includes('credit card bill') ||
     name.includes('credit card payment') ||
@@ -67,14 +105,11 @@ export function isCreditTransaction(t: any): boolean {
   if (['debit', 'outflow', 'expense', 'dr'].includes(type)) return false;
 
   // 4. Legitimate Income Semantics
-  // If the transaction explicitly indicates incoming money and isn't caught by exclusions
   if (['credit', 'inflow', 'income', 'cr'].includes(type)) {
-    // If it's a generic transfer, check if it's an external incoming one (which we assume true if type is credit and not caught by self-transfer check above).
-    // However, if the category is transfer but type is unknown, we shouldn't assume income.
     return true; 
   }
 
-  // 5. Category Checks for Income (if type was missing)
+  // 5. Category Checks for Income
   if (
     category.includes('income') || 
     category.includes('salary') || 
@@ -82,9 +117,6 @@ export function isCreditTransaction(t: any): boolean {
   ) {
     return true;
   }
-
-  // Note: We deliberately removed category.includes('transfer') here. 
-  // An unknown transfer without a 'credit' type must not confidently be assumed as income.
 
   // 6. Name & Keyword Matching for Uncategorized Credits
   if (
@@ -98,7 +130,6 @@ export function isCreditTransaction(t: any): boolean {
   ) {
     return true;
   }
-  // Note: We deliberately removed name.includes('credit') from this loose generic check to prevent matching "Credit Card...".
 
   // 7. Negative Polarity Check (legacy fallback)
   if (typeof t.amount === 'number' && t.amount < 0 && !category.includes('transfer')) {
@@ -107,7 +138,8 @@ export function isCreditTransaction(t: any): boolean {
 
   return false;
 }
-export function calculateFinancialHealth(transactions: Transaction[]): FinancialHealthResult {
+
+export function calculateFinancialHealth(transactions: Transaction[], userBankIds?: Set<string> | string[]): FinancialHealthResult {
   if (!transactions || transactions.length === 0) {
     return {
       savingsRate: 0,
@@ -117,13 +149,13 @@ export function calculateFinancialHealth(transactions: Transaction[]): Financial
     };
   }
 
-  // Separate income and expenses deterministically via isCreditTransaction
+  // Separate income and expenses deterministically
   const income = transactions
-    .filter((t) => isCreditTransaction(t))
+    .filter((t) => isCreditTransaction(t, userBankIds))
     .reduce((sum, t) => sum + Math.abs(t.amount || 0), 0);
 
   const expenses = transactions
-    .filter((t) => !isCreditTransaction(t))
+    .filter((t) => !isCreditTransaction(t, userBankIds) && !isNeutralTransaction(t, userBankIds))
     .reduce((sum, t) => sum + Math.abs(t.amount || 0), 0);
 
   // Calculate savings rate
@@ -160,7 +192,8 @@ export function calculateFinancialHealth(transactions: Transaction[]): Financial
     const date = new Date(rawDate);
     if (isNaN(date.getTime())) return;
     const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-    const amount = isCreditTransaction(t) ? Math.abs(t.amount || 0) : -Math.abs(t.amount || 0);
+    if (isNeutralTransaction(t, userBankIds)) return;
+    const amount = isCreditTransaction(t, userBankIds) ? Math.abs(t.amount || 0) : -Math.abs(t.amount || 0);
     monthlyData.set(monthKey, (monthlyData.get(monthKey) || 0) + amount);
   });
 
@@ -190,7 +223,7 @@ export function calculateFinancialHealth(transactions: Transaction[]): Financial
   // Calculate top expense categories
   const categoryExpenses = new Map<string, number>();
   transactions
-    .filter((t) => !isCreditTransaction(t))
+    .filter((t) => !isCreditTransaction(t, userBankIds) && !isNeutralTransaction(t, userBankIds))
     .forEach((t) => {
       const category = t.category || 'General';
       const amount = Math.abs(t.amount || 0);
@@ -286,15 +319,15 @@ export function detectSubscriptions(transactions: Transaction[]): SubscriptionDe
  * - Requires at least 5 transactions in a category for sample variance (N - 1)
  * - Flags only positive expenditure spikes (Z-score > 2.5) with a ₹500 / 50% materiality floor
  */
-export function detectAnomalies(transactions: Transaction[]): AnomalyDetection[] {
+export function detectAnomalies(transactions: Transaction[], userBankIds?: Set<string> | string[]): AnomalyDetection[] {
   if (!transactions || transactions.length === 0) {
     return [];
   }
 
   // 1. Filter for debit / expense transactions only (exclude credits, refunds, and self-transfers)
   const debitTransactions = transactions.filter((t) => {
-    if (isCreditTransaction(t)) return false;
-    if (t.senderBankId && t.receiverBankId && t.senderBankId === t.receiverBankId) return false;
+    if (isCreditTransaction(t, userBankIds)) return false;
+    if (isNeutralTransaction(t, userBankIds)) return false;
     return true;
   });
 
@@ -387,14 +420,25 @@ export function calculateNetWorth(
   investmentSummary?: any,
   liabilities: number = 0
 ): number {
-  const bankTotal = bankBalances.reduce((sum, acc) => {
-    // Firestore fields for account balances
-    const bal = acc.currentBalance ?? acc.balance ?? acc.availableBalance ?? 0;
-    return sum + Number(bal);
-  }, 0);
+  let assetTotal = 0;
+  let liabilityTotal = liabilities || 0;
+
+  bankBalances.forEach((acc) => {
+    const bal = Number(acc.currentBalance ?? acc.balance ?? acc.availableBalance ?? 0);
+    const type = String(acc.type || '').toLowerCase();
+    const subtype = String(acc.subtype || '').toLowerCase();
+
+    // The established repository convention: positive balance on credit/loan means debt.
+    if (type === 'credit' || subtype === 'credit_card' || type === 'loan') {
+      liabilityTotal += bal; // bal is positive for debt, negative for overpaid (which subtracts from liabilities)
+    } else if (type === 'depository' || type === 'investment' || type === 'bank') {
+      // Align with FireEngine: only explicitly recognized asset accounts count towards net worth
+      assetTotal += bal;
+    }
+  });
 
   const investmentTotal = investmentSummary?.totalPortfolioValue || investmentSummary?.currentValue || 0;
-  return Math.max(0, bankTotal + investmentTotal - (liabilities || 0));
+  return Math.max(0, assetTotal + investmentTotal - liabilityTotal);
 }
 
 /**
@@ -407,7 +451,7 @@ export interface MonthlyCashFlow {
   net: number
 }
 // Fixed calculateMonthlyCashFlow: accurately detects expense vs income transactions
-export function calculateMonthlyCashFlow(transactions: any[] = []): MonthlyCashFlow[] {
+export function calculateMonthlyCashFlow(transactions: any[] = [], userBankIds?: Set<string> | string[]): MonthlyCashFlow[] {
   const monthlyData: { [key: string]: { inflow: number; outflow: number } } = {};
 
   transactions.forEach((t) => {
@@ -428,7 +472,13 @@ export function calculateMonthlyCashFlow(transactions: any[] = []): MonthlyCashF
     }
 
     const amt = Math.abs(t.amount || 0);
-    if (isCreditTransaction(t)) {
+    
+    // Skip neutral transactions unless they are explicitly classified as income
+    if (isNeutralTransaction(t, userBankIds) && !isCreditTransaction(t, userBankIds)) {
+      return;
+    }
+
+    if (isCreditTransaction(t, userBankIds)) {
       monthlyData[monthKey].inflow += amt;
     } else {
       monthlyData[monthKey].outflow += amt;

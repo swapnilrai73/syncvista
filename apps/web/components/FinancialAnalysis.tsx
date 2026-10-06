@@ -13,6 +13,8 @@ import {
   detectAnomalies,
   calculateNetWorth,
   calculateMonthlyCashFlow,
+  isCreditTransaction,
+  isNeutralTransaction,
   type AnomalyDetection,
 } from '@/lib/analytics/engine'
 import { formatAmount } from '@/lib/utils'
@@ -69,17 +71,17 @@ const FinancialAnalysis = ({
 
   const filteredTransactions = filterTransactionsByTimeframe(transactions)
 
+  const userBankIds = new Set(bankBalances.map((b: any) => b.bankDocumentId || b.id).filter(Boolean));
+
   const expenseOnlyTransactions = filteredTransactions.filter((t: any) => {
-    const isDebitType = t.type ? t.type.toLowerCase() === 'debit' : true
-    const isNotSalaryCategory = (t.category || '').toLowerCase() !== 'salary' && (t.name || '').toLowerCase() !== 'monthly salary credit'
-    return isDebitType && isNotSalaryCategory
+    return !isCreditTransaction(t, userBankIds) && !isNeutralTransaction(t, userBankIds)
   })
 
   const categoryFilteredTransactions = selectedCategory 
     ? expenseOnlyTransactions.filter((t: any) => (t.category || '').toLowerCase() === selectedCategory.toLowerCase())
     : expenseOnlyTransactions
 
-  const financialHealth = calculateFinancialHealth(filteredTransactions)
+  const financialHealth = calculateFinancialHealth(filteredTransactions, userBankIds)
   const rawSubscriptions = detectSubscriptions(categoryFilteredTransactions)
 
   const subscriptions = rawSubscriptions.filter((sub: any) => {
@@ -90,7 +92,7 @@ const FinancialAnalysis = ({
 
   const anomalies = detectAnomalies(filteredTransactions)
   const netWorth = calculateNetWorth(bankBalances, investmentSummary)
-  const monthlyCashFlow = calculateMonthlyCashFlow(filteredTransactions)
+  const monthlyCashFlow = calculateMonthlyCashFlow(filteredTransactions, userBankIds)
 
   const subscriptionLeakage = subscriptions.reduce((sum: number, sub: any) => {
     const amount = sub.averageAmount || sub.amount || 0
@@ -123,42 +125,10 @@ const FinancialAnalysis = ({
   })
 
   const groupedCashFlowData = chronologicallySortedCashFlow.map((cf: any) => {
-    const parts = (cf.month || '').trim().split(' ')
-    const mName = parts[0]
-    const yr = parseInt(parts[1] || '2026', 10)
-    const mIdx = monthMap[mName] ?? -1
-
-    const monthTxns = filteredTransactions.filter((t: any) => {
-      const rawDate = t.date || t.$createdAt || t.createdAt
-      if (!rawDate) return false
-      const d = new Date(rawDate)
-      if (isNaN(d.getTime())) return false
-      return d.getMonth() === mIdx && d.getFullYear() === yr
-    })
-
-    const computedInflow = monthTxns.reduce((sum: number, t: any) => {
-      const isCredit = t.type?.toLowerCase() === 'credit'
-      const isSalary = (t.category || '').toLowerCase() === 'salary'
-      const isPositive = (t.amount || 0) > 0
-      return (isCredit || isSalary || isPositive) ? sum + Math.abs(t.amount || 0) : sum
-    }, 0)
-
-    const fallbackInflow = cf.inflow ?? cf.income ?? cf.credits ?? cf.totalInflow ?? 0
-    const finalInflow = computedInflow > 0 ? computedInflow : Math.abs(Number(fallbackInflow) || 0)
-
-    const computedOutflow = monthTxns.reduce((sum: number, t: any) => {
-      const isDebit = t.type?.toLowerCase() === 'debit'
-      const isNegative = (t.amount || 0) < 0
-      return (isDebit || isNegative) ? sum + Math.abs(t.amount || 0) : sum
-    }, 0)
-
-    const fallbackOutflow = cf.outflow ?? cf.expenses ?? cf.debits ?? cf.totalOutflow ?? 0
-    const finalOutflow = computedOutflow > 0 ? computedOutflow : Math.abs(Number(fallbackOutflow) || 0)
-
     return {
       date: cf.month,
-      'Inflow': Math.round(finalInflow),
-      'Outflow': Math.round(finalOutflow),
+      'Inflow': Math.round(cf.inflow || 0),
+      'Outflow': Math.round(cf.outflow || 0),
     }
   })
 
@@ -190,19 +160,13 @@ const FinancialAnalysis = ({
       )
     })
 
-    const isExpense = (t: any) => {
-      if (t.type) return t.type.toLowerCase() === 'debit'
-      if (t.category) return t.category.toLowerCase() !== 'income' && t.category.toLowerCase() !== 'salary'
-      return true
-    }
-
     const essentialSpend = monthTransactions
-        .filter(isExpense)
+        .filter((t: any) => !isCreditTransaction(t, userBankIds) && !isNeutralTransaction(t, userBankIds))
         .filter((t: any) => ESSENTIAL_CATEGORIES.some((cat: string) => (t.category || '').toLowerCase().includes(cat.toLowerCase())))
         .reduce((sum: number, t: any) => sum + Math.abs(t.amount), 0)
 
     const discretionarySpend = monthTransactions
-        .filter(isExpense)
+        .filter((t: any) => !isCreditTransaction(t, userBankIds) && !isNeutralTransaction(t, userBankIds))
         .filter((t: any) => DISCRETIONARY_CATEGORIES.some((cat: string) => (t.category || '').toLowerCase().includes(cat.toLowerCase())))
         .reduce((sum: number, t: any) => sum + Math.abs(t.amount), 0)
 
@@ -309,12 +273,12 @@ const FinancialAnalysis = ({
   }, [retainedAmount])
 
   // Emergency buffer target (6 months burn rate)
-  const emergencyBufferTarget = Math.max(100000, Math.round(financialHealth.burnRate * 6))
+  const emergencyBufferTarget = financialHealth.burnRate > 0 ? Math.round(financialHealth.burnRate * 6) : null;
   const totalLiquidCash = bankBalances.reduce((sum: number, b: any) => {
     const bal = b.currentBalance ?? b.balance ?? b.availableBalance ?? 0
     return sum + Number(bal)
   }, 0)
-  const excessLiquidity = totalLiquidCash - emergencyBufferTarget
+  const excessLiquidity = emergencyBufferTarget !== null ? totalLiquidCash - emergencyBufferTarget : null;
 
   if (transactions.length === 0) {
     if (bankBalances.length > 0) {
@@ -1011,12 +975,12 @@ const FinancialAnalysis = ({
               <div className="my-4 p-3 bg-slate-50 rounded-lg border border-slate-100 space-y-1.5">
                 <div className="flex justify-between text-xs">
                   <span className="text-slate-500">6-Mo Buffer Target:</span>
-                  <span className="font-bold text-slate-800">{formatAmount(emergencyBufferTarget)}</span>
+                  <span className="font-bold text-slate-800">{emergencyBufferTarget !== null ? formatAmount(emergencyBufferTarget) : 'Unknown'}</span>
                 </div>
                 <div className="flex justify-between text-xs">
                   <span className="text-slate-500">Liquid Position:</span>
-                  <span className={`font-bold ${excessLiquidity >= 0 ? 'text-emerald-700' : 'text-amber-700'}`}>
-                    {excessLiquidity >= 0 ? `+${formatAmount(excessLiquidity)} surplus` : `${formatAmount(Math.abs(excessLiquidity))} gap`}
+                  <span className={`font-bold ${excessLiquidity !== null && excessLiquidity >= 0 ? 'text-emerald-700' : excessLiquidity !== null && excessLiquidity < 0 ? 'text-amber-700' : 'text-slate-800'}`}>
+                    {excessLiquidity === null ? 'Unknown' : excessLiquidity >= 0 ? `+${formatAmount(excessLiquidity)} surplus` : `${formatAmount(Math.abs(excessLiquidity))} gap`}
                   </span>
                 </div>
               </div>
@@ -1024,7 +988,9 @@ const FinancialAnalysis = ({
 
             <div className="pt-3 border-t border-slate-100">
               <p className="text-[11px] text-slate-600 leading-relaxed">
-                {excessLiquidity >= 0 
+                {excessLiquidity === null
+                  ? "Unable to determine excess liquidity due to unknown safety buffer."
+                  : excessLiquidity >= 0 
                   ? `You maintain ₹${Math.round(excessLiquidity).toLocaleString('en-IN')} beyond your 6-month safety buffer. Deploying this idle cash into equity index funds protects purchasing power against inflation.`
                   : `Your liquid accounts are ₹${Math.round(Math.abs(excessLiquidity)).toLocaleString('en-IN')} below the 6-month living cost safety buffer. Direct current monthly savings into high-yield liquid accounts until fully funded.`}
               </p>

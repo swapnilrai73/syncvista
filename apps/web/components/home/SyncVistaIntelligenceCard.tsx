@@ -22,20 +22,20 @@ export default function SyncVistaIntelligenceCard({
 }: SyncVistaIntelligenceCardProps) {
   // Deterministic capital deployment synthesis
   const { emergencyBufferGap, isBufferFunded, recommendedSplits } = useMemo(() => {
-    const bufferTarget = Math.max(100000, Math.round(burnRate * 6))
-    const gap = bufferTarget - totalLiquid
-    const bufferFunded = gap <= 0
+    const bufferTarget = burnRate > 0 ? Math.round(burnRate * 6) : null;
+    const gap = bufferTarget !== null ? bufferTarget - totalLiquid : null;
+    const bufferFunded = gap !== null ? gap <= 0 : false;
 
     // Compute deterministic priority distribution based on real retained amount
     let splits = []
     if (retainedAmount > 0) {
       if (!bufferFunded) {
         // Allocate up to 50% of retained amount to close buffer gap
-        const bufferAlloc = Math.min(retainedAmount * 0.5, gap)
-        const debtAlloc = Math.round(retainedAmount * 0.3)
+        const bufferAlloc = gap !== null ? Math.min(retainedAmount * 0.5, gap) : 0
+        const debtAlloc = Math.round(retainedAmount * (gap !== null ? 0.3 : 0.5))
         const equityAlloc = Math.max(0, retainedAmount - bufferAlloc - debtAlloc)
         splits = [
-          { label: 'Emergency Reserve Replenishment', amount: bufferAlloc, tag: 'Safety Buffer', icon: Shield },
+          ...(gap !== null ? [{ label: 'Emergency Reserve Replenishment', amount: bufferAlloc, tag: 'Safety Buffer', icon: Shield }] : []),
           { label: 'High-Interest Debt Prepayment (Avalanche)', amount: debtAlloc, tag: 'Liability Engine', icon: Zap },
           { label: 'Section 112A Tax-Advantaged Equity', amount: equityAlloc, tag: 'Growth Capital', icon: Scale },
         ]
@@ -57,7 +57,7 @@ export default function SyncVistaIntelligenceCard({
     }
 
     return {
-      emergencyBufferGap: Math.max(0, gap),
+      emergencyBufferGap: gap !== null ? Math.max(0, gap) : null,
       isBufferFunded: bufferFunded,
       recommendedSplits: splits,
     }

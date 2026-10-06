@@ -39,8 +39,8 @@ const TransactionsTable = ({ transactions }: TransactionTableProps) => {
       <TableBody>
         {transactions.map((t: Transaction, index: number) => {
           const status = getTransactionStatus(new Date(t.date))
-          const isDebit = t.type === 'debit' || t.amount < 0;
-          const isCredit = t.type === 'credit' || t.amount > 0;
+          const isDebit = t.type === 'debit';
+          const isCredit = t.type === 'credit';
           const formattedAmount = formatAmount(Math.abs(t.amount));
 
           return (

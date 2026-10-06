@@ -42,8 +42,9 @@ export default function HomeDashboardClient({
 
   // 2. Deterministic Core Calculations
   const financialHealth = useMemo(() => {
-    return calculateFinancialHealth(effectiveTransactions)
-  }, [effectiveTransactions])
+    const userBankIds = new Set(effectiveAccounts.map((a: any) => a.bankDocumentId).filter(Boolean));
+    return calculateFinancialHealth(effectiveTransactions, userBankIds)
+  }, [effectiveTransactions, effectiveAccounts])
 
   const subscriptions = useMemo(() => {
     const raw = detectSubscriptions(effectiveTransactions)
@@ -86,8 +87,9 @@ export default function HomeDashboardClient({
   }, [totalLiquid, financialHealth.burnRate])
 
   const monthlyCashFlow = useMemo(() => {
-    return calculateMonthlyCashFlow(effectiveTransactions)
-  }, [effectiveTransactions])
+    const userBankIds = new Set(effectiveAccounts.map((a: any) => a.bankDocumentId).filter(Boolean));
+    return calculateMonthlyCashFlow(effectiveTransactions, userBankIds)
+  }, [effectiveTransactions, effectiveAccounts])
 
   // 3. Cash Flow Trajectory & Velocity Metrics
   const { grossInflow, grossOutflow, retainedAmount, cashFlowDelta } = useMemo(() => {

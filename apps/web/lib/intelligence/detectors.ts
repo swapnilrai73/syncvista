@@ -16,7 +16,8 @@ export function detectOpportunities(snapshot: FinancialSnapshot): FinancialOppor
     .reduce((sum, acc) => sum + (acc.availableBalance ?? acc.currentBalance ?? 0), 0);
 
   // 2. Calculate average monthly burn rate
-  const cashFlows = calculateMonthlyCashFlow(snapshot.transactions);
+  const userBankIds = new Set(snapshot.accounts.map((a) => a.bankDocumentId).filter(Boolean));
+  const cashFlows = calculateMonthlyCashFlow(snapshot.transactions, userBankIds);
   let averageMonthlyBurn = 0;
   if (cashFlows.length > 0) {
     const totalBurn = cashFlows.reduce((sum, cf) => sum + cf.outflow, 0);
